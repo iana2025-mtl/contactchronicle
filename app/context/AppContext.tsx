@@ -42,6 +42,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   const initializeTimelineData = () => {
     const timestamp = Date.now();
@@ -97,9 +98,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!user) {
       setTimelineEvents([]);
       setContacts([]);
+      setIsDataLoaded(false);
       return;
     }
 
+    setIsDataLoaded(false);
     const timelineKey = `contactChronicle_timeline_${user.id}`;
     const contactsKey = `contactChronicle_contacts_${user.id}`;
     const initializedKey = `contactChronicle_initialized_${user.id}`;
@@ -109,31 +112,60 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const hasInitialized = localStorage.getItem(initializedKey);
     
     if (savedTimeline) {
-      setTimelineEvents(JSON.parse(savedTimeline));
+      try {
+        const parsedTimeline = JSON.parse(savedTimeline);
+        setTimelineEvents(parsedTimeline);
+      } catch (error) {
+        console.error('Error parsing timeline data:', error);
+        if (!hasInitialized) {
+          initializeTimelineData();
+          localStorage.setItem(initializedKey, 'true');
+        }
+      }
     } else if (!hasInitialized) {
       // Initialize with actual resume data for new users
       initializeTimelineData();
       localStorage.setItem(initializedKey, 'true');
     }
+    
     if (savedContacts) {
-      setContacts(JSON.parse(savedContacts));
+      try {
+        const parsedContacts = JSON.parse(savedContacts);
+        setContacts(parsedContacts);
+      } catch (error) {
+        console.error('Error parsing contacts data:', error);
+        setContacts([]);
+      }
+    } else {
+      setContacts([]);
     }
+    
+    // Mark data as loaded to allow saves
+    setIsDataLoaded(true);
   }, [user]);
 
-  // Save to localStorage whenever state changes
+  // Save to localStorage whenever state changes (only after initial load)
   useEffect(() => {
-    if (user) {
+    if (user && isDataLoaded) {
       const timelineKey = `contactChronicle_timeline_${user.id}`;
-      localStorage.setItem(timelineKey, JSON.stringify(timelineEvents));
+      try {
+        localStorage.setItem(timelineKey, JSON.stringify(timelineEvents));
+      } catch (error) {
+        console.error('Error saving timeline data:', error);
+      }
     }
-  }, [timelineEvents, user]);
+  }, [timelineEvents, user, isDataLoaded]);
 
   useEffect(() => {
-    if (user) {
+    if (user && isDataLoaded) {
       const contactsKey = `contactChronicle_contacts_${user.id}`;
-      localStorage.setItem(contactsKey, JSON.stringify(contacts));
+      try {
+        localStorage.setItem(contactsKey, JSON.stringify(contacts));
+      } catch (error) {
+        console.error('Error saving contacts data:', error);
+      }
     }
-  }, [contacts, user]);
+  }, [contacts, user, isDataLoaded]);
 
   const addTimelineEvent = (event: Omit<TimelineEvent, 'id'>) => {
     const newEvent: TimelineEvent = {
@@ -162,15 +194,48 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ...contact,
       id: contact.id || Date.now().toString() + Math.random().toString(36).substr(2, 9),
     }));
-    setContacts([...contacts, ...contactsWithIds]);
+    const updatedContacts = [...contacts, ...contactsWithIds];
+    setContacts(updatedContacts);
+    
+    // Immediately save to localStorage if user is logged in and data is loaded
+    if (user && isDataLoaded) {
+      const contactsKey = `contactChronicle_contacts_${user.id}`;
+      try {
+        localStorage.setItem(contactsKey, JSON.stringify(updatedContacts));
+      } catch (error) {
+        console.error('Error saving contacts immediately:', error);
+      }
+    }
   };
 
   const updateContact = (id: string, contact: Partial<Contact>) => {
-    setContacts(contacts.map(c => c.id === id ? { ...c, ...contact } : c));
+    const updatedContacts = contacts.map(c => c.id === id ? { ...c, ...contact } : c);
+    setContacts(updatedContacts);
+    
+    // Immediately save to localStorage if user is logged in and data is loaded
+    if (user && isDataLoaded) {
+      const contactsKey = `contactChronicle_contacts_${user.id}`;
+      try {
+        localStorage.setItem(contactsKey, JSON.stringify(updatedContacts));
+      } catch (error) {
+        console.error('Error saving contacts immediately:', error);
+      }
+    }
   };
 
   const deleteContact = (id: string) => {
-    setContacts(contacts.filter(c => c.id !== id));
+    const updatedContacts = contacts.filter(c => c.id !== id);
+    setContacts(updatedContacts);
+    
+    // Immediately save to localStorage if user is logged in and data is loaded
+    if (user && isDataLoaded) {
+      const contactsKey = `contactChronicle_contacts_${user.id}`;
+      try {
+        localStorage.setItem(contactsKey, JSON.stringify(updatedContacts));
+      } catch (error) {
+        console.error('Error saving contacts immediately:', error);
+      }
+    }
   };
 
   const initializeTimeline = () => {

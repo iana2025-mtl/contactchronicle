@@ -26,12 +26,87 @@ export default function TimelinePage() {
     geographicEvent: '',
   });
 
+  const formatProfessionalEvent = (text: string): string => {
+    if (!text || text.trim() === '') return text;
+    
+    const trimmed = text.trim();
+    
+    // If already has bold formatting for the first title, return as-is
+    if (trimmed.match(/^\*\*[^*]+\*\*/)) return text;
+    
+    // Try to detect job title pattern
+    // Pattern 1: "Job Title at Company" (with optional separator and responsibilities)
+    let match = trimmed.match(/^([^–—-]+?)\s+at\s+([^–—-]+?)(\s*[-–—\n•]|\s*$)/i);
+    if (match) {
+      const title = match[1].trim();
+      const company = match[2].trim();
+      const separator = match[3]?.trim() || '';
+      const rest = trimmed.substring(match[0].length - separator.length);
+      
+      // Only format if title looks reasonable (not too long, doesn't contain special chars at start)
+      if (title.length > 0 && title.length < 100 && !title.match(/^[•\-\*\d]/)) {
+        return `**${title}** at ${company}${separator}${rest}`;
+      }
+    }
+    
+    // Pattern 2: "Job Title - Company" or "Job Title Company"
+    match = trimmed.match(/^([^–—-]+?)(\s+[-–—]\s+)([^–—\n•]+?)(\s*[-–—\n•]|\s*$)/);
+    if (match) {
+      const title = match[1].trim();
+      const company = match[3].trim();
+      const separator = match[4]?.trim() || '';
+      const rest = trimmed.substring(match[0].length - separator.length);
+      
+      if (title.length > 0 && title.length < 100 && !title.match(/^[•\-\*\d]/)) {
+        return `**${title}** at ${company}${separator}${rest}`;
+      }
+    }
+    
+    // Pattern 3: First line (before first newline, bullet, or dash) - treat as job title
+    const lines = trimmed.split('\n');
+    if (lines.length > 0) {
+      const firstLine = lines[0].trim();
+      // Check if first line ends with dash/separator or is followed by bullet points
+      const firstLineMatch = firstLine.match(/^([^–—•\n]+?)(\s*[-–—]|\s*$)/);
+      
+      if (firstLineMatch) {
+        const title = firstLineMatch[1].trim();
+        if (title.length > 0 && title.length < 100 && !title.match(/^[•\-\*\d]/) && !title.toLowerCase().includes('responsibilities')) {
+          const formattedFirstLine = `**${title}**${firstLineMatch[2] || ''}`;
+          if (lines.length > 1) {
+            return `${formattedFirstLine}\n${lines.slice(1).join('\n')}`;
+          }
+          return formattedFirstLine + (firstLineMatch[2] ? '' : '');
+        }
+      }
+      
+      // If first line doesn't have separator but is reasonable length, format it
+      if (firstLine.length > 0 && firstLine.length < 80 && !firstLine.match(/^[•\-\*\d]/) && !firstLine.toLowerCase().includes('responsibilities')) {
+        const formattedFirstLine = `**${firstLine}**`;
+        if (lines.length > 1) {
+          return `${formattedFirstLine}\n${lines.slice(1).join('\n')}`;
+        }
+        return formattedFirstLine;
+      }
+    }
+    
+    // If no pattern matches, return as-is
+    return text;
+  };
+
   const handleAddOrEdit = () => {
+    const processedData = { ...formData };
+    
+    // Automatically format job title in bold for professional events
+    if (processedData.professionalEvent && processedData.professionalEvent.trim()) {
+      processedData.professionalEvent = formatProfessionalEvent(processedData.professionalEvent);
+    }
+    
     if (editingEvent) {
-      updateTimelineEvent(editingEvent.id, formData);
+      updateTimelineEvent(editingEvent.id, processedData);
       setEditingEvent(null);
     } else {
-      addTimelineEvent(formData);
+      addTimelineEvent(processedData);
     }
     setFormData({
       monthYear: '',
@@ -263,14 +338,20 @@ export default function TimelinePage() {
   };
 
   const formatJobEvent = (title: string, company?: string, responsibilities?: string[]): string => {
-    let result = title;
+    // Ensure title is bold
+    let formattedTitle = title.trim();
+    if (!formattedTitle.startsWith('**') || !formattedTitle.endsWith('**')) {
+      formattedTitle = `**${formattedTitle}**`;
+    }
+    
+    let result = formattedTitle;
     if (company) {
       result += ` at ${company}`;
     }
     if (responsibilities && responsibilities.length > 0) {
-      result += ` - Responsibilities: ${responsibilities.slice(0, 5).join(', ')}`;
+      result += `\n• ${responsibilities.slice(0, 5).join('\n• ')}`;
       if (responsibilities.length > 5) {
-        result += `, and ${responsibilities.length - 5} more`;
+        result += `\n• and ${responsibilities.length - 5} more`;
       }
     }
     return result;
@@ -318,7 +399,8 @@ export default function TimelinePage() {
           </div>
           <ul className="text-sm text-purple-700 space-y-1 list-disc list-inside">
             <li><strong>Month/Year:</strong> Enter the start date of each position (e.g., 03/2020 for March 2020)</li>
-            <li><strong>Professional Event:</strong> Include: <strong>Job Title</strong> at <strong>Company Name</strong> - <strong>Key Responsibilities</strong> (e.g., Financial statements, account reconciliation, Excel, Power BI)</li>
+            <li><strong>Professional Event:</strong> Include: <strong>Job Title</strong> at <strong>Company Name</strong> followed by responsibilities (job titles are automatically formatted in bold)</li>
+            <li>Example: &quot;Senior Financial Analyst at ABC Company&quot; followed by bullet points (•) for responsibilities</li>
             <li>Click any row to edit your entries</li>
           </ul>
         </div>
@@ -504,14 +586,14 @@ export default function TimelinePage() {
                   Key Professional Event (Job Title, Company, Responsibilities)
                 </label>
                 <textarea
-                  placeholder="e.g. Senior Financial Analyst at ABC Company - Responsibilities: Financial reporting, budget analysis, data modeling with Excel and Power BI"
+                  placeholder="e.g. Senior Financial Analyst at ABC Company&#10;• Financial reporting&#10;• Budget analysis&#10;• Data modeling with Excel and Power BI"
                   value={formData.professionalEvent}
                   onChange={(e) => setFormData({ ...formData, professionalEvent: e.target.value })}
-                  rows={3}
+                  rows={4}
                   className="w-full px-3 py-2 border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
                 />
                 <p className="text-xs text-purple-500 mt-1">
-                  Include: Job Title, Company Name, and Key Responsibilities
+                  💡 Tip: Job titles will be automatically formatted in <strong>bold</strong>. Format: &quot;Job Title at Company&quot; followed by bullet points (•) for responsibilities.
                 </p>
               </div>
               <div>
