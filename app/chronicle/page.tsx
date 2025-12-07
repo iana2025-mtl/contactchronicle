@@ -1,11 +1,20 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { useApp, Contact } from '../context/AppContext';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
+// Dynamically import Recharts to avoid SSR issues
+const BarChart = dynamic(() => import('recharts').then((mod) => mod.BarChart), { ssr: false });
+const Bar = dynamic(() => import('recharts').then((mod) => mod.Bar), { ssr: false });
+const XAxis = dynamic(() => import('recharts').then((mod) => mod.XAxis), { ssr: false });
+const YAxis = dynamic(() => import('recharts').then((mod) => mod.YAxis), { ssr: false });
+const CartesianGrid = dynamic(() => import('recharts').then((mod) => mod.CartesianGrid), { ssr: false });
+const Tooltip = dynamic(() => import('recharts').then((mod) => mod.Tooltip), { ssr: false });
+const ResponsiveContainer = dynamic(() => import('recharts').then((mod) => mod.ResponsiveContainer), { ssr: false });
 
 export default function ChroniclePage() {
   const { contacts, updateContact } = useApp();
@@ -13,6 +22,11 @@ export default function ChroniclePage() {
   const [selectedSource, setSelectedSource] = useState<string>('all');
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [notes, setNotes] = useState('');
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Process contacts by month
   const contactsByMonth = useMemo(() => {
@@ -177,45 +191,51 @@ export default function ChroniclePage() {
           {/* Chart */}
           <div className="mb-3">
             <h3 className="text-lg font-medium mb-3 text-purple-800">Contacts Added by Month (5 Years)</h3>
-            <ResponsiveContainer width="100%" height={450}>
-              <BarChart 
-                data={contactsByMonth}
-                margin={{ top: 20, right: 30, left: 25, bottom: 80 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#e9d5ff" />
-                <XAxis 
-                  dataKey="month" 
-                  angle={-45}
-                  textAnchor="end"
-                  height={100}
-                  interval={2}
-                  tick={{ fill: '#9333ea', fontSize: 13 }}
-                  label={{ value: 'Month (MM-YY)', position: 'insideBottom', offset: -5, fill: '#9333ea', fontSize: 14 }}
-                />
-                <YAxis 
-                  width={70}
-                  tick={{ fill: '#9333ea', fontSize: 14 }}
-                  label={{ 
-                    value: 'Number of Contacts Added', 
-                    angle: -90, 
-                    position: 'insideLeft',
-                    style: { textAnchor: 'middle', fill: '#9333ea', fontSize: 14 },
-                    offset: -15
-                  }}
-                  domain={[0, 'dataMax + 10']}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#f3e8ff', 
-                    border: '1px solid #d8b4fe',
-                    borderRadius: '8px',
-                    color: '#9333ea',
-                    fontSize: '14px'
-                  }}
-                />
-                <Bar dataKey="count" fill="#d8b4fe" radius={[6, 6, 0, 0]} barSize={35} />
-              </BarChart>
-            </ResponsiveContainer>
+            {isClient ? (
+              <ResponsiveContainer width="100%" height={450}>
+                <BarChart 
+                  data={contactsByMonth}
+                  margin={{ top: 20, right: 30, left: 25, bottom: 80 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e9d5ff" />
+                  <XAxis 
+                    dataKey="month" 
+                    angle={-45}
+                    textAnchor="end"
+                    height={100}
+                    interval={2}
+                    tick={{ fill: '#9333ea', fontSize: 13 }}
+                    label={{ value: 'Month (MM-YY)', position: 'insideBottom', offset: -5, fill: '#9333ea', fontSize: 14 }}
+                  />
+                  <YAxis 
+                    width={70}
+                    tick={{ fill: '#9333ea', fontSize: 14 }}
+                    label={{ 
+                      value: 'Number of Contacts Added', 
+                      angle: -90, 
+                      position: 'insideLeft',
+                      style: { textAnchor: 'middle', fill: '#9333ea', fontSize: 14 },
+                      offset: -15
+                    }}
+                    domain={[0, 'dataMax + 10']}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#f3e8ff', 
+                      border: '1px solid #d8b4fe',
+                      borderRadius: '8px',
+                      color: '#9333ea',
+                      fontSize: '14px'
+                    }}
+                  />
+                  <Bar dataKey="count" fill="#d8b4fe" radius={[6, 6, 0, 0]} barSize={35} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="w-full h-[450px] flex items-center justify-center bg-purple-50 rounded-lg border border-purple-200">
+                <p className="text-purple-600">Loading chart...</p>
+              </div>
+            )}
             <p className="text-sm text-purple-600 mt-2">
               Bars show monthly additions; cycles indicate bursts vs. lulls.
             </p>
