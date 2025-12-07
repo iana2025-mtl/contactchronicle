@@ -301,15 +301,15 @@ export default function UploadPage() {
     <ProtectedRoute>
       <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
         <Header />
-      <main className="flex-1 container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-6 text-purple-800">Upload Contacts</h1>
+      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 sm:mb-6 text-purple-800">Upload Contacts</h1>
         
-        <div className="bg-gradient-to-r from-blue-100 to-purple-100 border border-purple-300 rounded-lg p-4 mb-6 shadow-sm">
-          <h2 className="text-sm font-semibold text-purple-900 mb-2">📋 Supported File Formats:</h2>
-          <ul className="text-sm text-purple-700 space-y-1 list-disc list-inside">
+        <div className="bg-gradient-to-r from-blue-100 to-purple-100 border border-purple-300 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6 shadow-sm">
+          <h2 className="text-xs sm:text-sm font-semibold text-purple-900 mb-2">📋 Supported File Formats:</h2>
+          <ul className="text-xs sm:text-sm text-purple-700 space-y-1 list-disc list-inside">
             <li><strong>Excel files (.xlsx, .xls):</strong> LinkedIn Connections.xlsx, Google Contacts export, or custom Excel files</li>
             <li><strong>CSV files:</strong> Standard CSV format with headers</li>
-            <li>For LinkedIn: Export your connections as &quot;Connections.xlsx&quot; from LinkedIn Settings → Data Privacy → Get a copy of your data</li>
+            <li className="hidden sm:list-item">For LinkedIn: Export your connections as &quot;Connections.xlsx&quot; from LinkedIn Settings → Data Privacy → Get a copy of your data</li>
           </ul>
         </div>
 
@@ -318,7 +318,7 @@ export default function UploadPage() {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`border-2 border-dashed rounded-lg p-12 text-center mb-6 transition-colors ${
+          className={`border-2 border-dashed rounded-lg p-6 sm:p-8 lg:p-12 text-center mb-4 sm:mb-6 transition-colors ${
             isDragging
               ? 'border-purple-400 bg-purple-100 shadow-lg'
               : 'border-purple-300 bg-white'
@@ -332,31 +332,31 @@ export default function UploadPage() {
             onChange={handleFileInput}
             className="hidden"
           />
-          <p className="text-lg text-purple-700 mb-2">
+          <p className="text-base sm:text-lg text-purple-700 mb-2">
             Drag and Drop Into File System
           </p>
           <p className="text-sm text-purple-600 mb-1">
             or click to browse
           </p>
           <p className="text-xs text-purple-400">
-            Supports CSV and Excel files (.xlsx, .xls) including LinkedIn Connections.xlsx
+            Supports CSV and Excel files (.xlsx, .xls)
           </p>
         </div>
 
         {/* Column Mapping */}
         {csvData.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-6 mb-6 bg-gradient-to-br from-white to-blue-50">
-            <h2 className="text-xl font-semibold mb-4 text-purple-800">Prompt to Confirm Key Columns:</h2>
-            <div className="space-y-3">
+          <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-4 sm:p-6 mb-4 sm:mb-6 bg-gradient-to-br from-white to-blue-50">
+            <h2 className="text-lg sm:text-xl font-semibold mb-4 text-purple-800">Prompt to Confirm Key Columns:</h2>
+            <div className="space-y-3 sm:space-y-4">
               {expectedColumns.map((expected) => (
-                <div key={expected} className="flex items-center gap-4">
-                  <label className="w-64 text-sm font-medium text-purple-700">
+                <div key={expected} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                  <label className="w-full sm:w-48 lg:w-64 text-sm font-medium text-purple-700">
                     {expected}:
                   </label>
                   <select
                     value={columnMapping[expected] || ''}
                     onChange={(e) => handleColumnMappingChange(expected, e.target.value)}
-                    className="flex-1 px-3 py-2 border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
+                    className="flex-1 px-3 sm:px-4 py-2.5 sm:py-2 text-base border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
                   >
                     <option value="">-- Select Column --</option>
                     {csvHeaders.map((header) => (
@@ -404,16 +404,16 @@ export default function UploadPage() {
         )}
 
         {/* Action Buttons */}
-        <div className="flex gap-4">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <button
             onClick={handleConfirm}
-            className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all font-medium shadow-md"
+            className="flex-1 sm:flex-initial px-4 sm:px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all font-medium shadow-md text-sm sm:text-base"
           >
             Confirm
           </button>
           <button
             onClick={handleCancel}
-            className="px-6 py-3 bg-pink-200 text-pink-700 rounded-lg hover:bg-pink-300 transition-colors font-medium shadow-sm"
+            className="flex-1 sm:flex-initial px-4 sm:px-6 py-3 bg-pink-200 text-pink-700 rounded-lg hover:bg-pink-300 transition-colors font-medium shadow-sm text-sm sm:text-base"
           >
             Cancel
           </button>
