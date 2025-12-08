@@ -164,9 +164,23 @@ export default function ChroniclePage() {
               id: existing.id,    // Always preserve existing ID
             };
             
-            // Explicitly set notes field if we have a value
-            if (finalNotes !== undefined) {
+            // CRITICAL: Explicitly set notes field - always include it if we have a value
+            if (finalNotes !== undefined && finalNotes !== null) {
               updateData.notes = finalNotes;
+              console.log(`  ✅ Setting notes in updateData: "${finalNotes.substring(0, 80)}..."`);
+            } else {
+              console.log(`  ⚠️ finalNotes is undefined/null, not setting notes field`);
+              console.log(`    importedHasNotes: ${importedHasNotes}, existingHasNotes: ${existingHasNotes}`);
+              console.log(`    imported.notes:`, imported.notes);
+              console.log(`    existing.notes:`, existing.notes);
+            }
+            
+            // Verify notes is in updateData before adding to array
+            if (updateData.notes) {
+              console.log(`  ✅ VERIFIED: updateData.notes = "${updateData.notes.substring(0, 50)}..."`);
+            } else {
+              console.log(`  ❌ ERROR: updateData.notes is missing!`);
+              console.log(`    updateData object:`, updateData);
             }
             
             contactsToUpdate.push({
@@ -214,11 +228,21 @@ export default function ChroniclePage() {
         console.log(`  Summary: ${contactsToUpdate.length} to update (${notesUpdatedCount} with notes), ${contactsToAdd.length} to add (${notesAddedCount} with notes)`);
 
         // Log all updates with notes before applying
+        console.log(`\n🔄 PRE-UPDATE VERIFICATION:`);
         contactsToUpdate.forEach(({ id, contact }) => {
+          console.log(`  Contact ${id}:`, {
+            hasNotes: !!contact.notes,
+            notesValue: contact.notes || 'MISSING',
+            notesLength: contact.notes?.length || 0,
+            allFields: Object.keys(contact)
+          });
           if (contact.notes) {
-            console.log(`  🔄 Will update contact ${id} with notes: "${contact.notes.substring(0, 60)}..."`);
+            console.log(`    ✅ Has notes: "${contact.notes.substring(0, 60)}..."`);
+          } else {
+            console.log(`    ❌ MISSING NOTES!`);
           }
         });
+        console.log(`\n`);
 
         // Apply updates - batch them
         contactsToUpdate.forEach(({ id, contact }) => {
