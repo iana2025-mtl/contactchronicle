@@ -76,14 +76,21 @@ export default function ChroniclePage() {
 
         // Count contacts with notes in imported file
         const importedWithNotes = importedContacts.filter(c => c.notes && c.notes.trim());
-        console.log(`📤 Importing ${importedContacts.length} contacts (${importedWithNotes.length} with notes)`);
+        console.log(`📤 ===== IMPORT STARTING =====`);
+        console.log(`📤 Importing ${importedContacts.length} total contacts`);
+        console.log(`📤 Contacts with notes in file: ${importedWithNotes.length}`);
         
+        // Log all contacts with notes for debugging
         if (importedWithNotes.length > 0) {
-          console.log('Sample notes being imported:', importedWithNotes.slice(0, 3).map(c => ({
-            name: `${c.firstName} ${c.lastName}`,
-            notesLength: c.notes?.length || 0,
-            notesPreview: c.notes?.substring(0, 100)
-          })));
+          console.log('📤 All contacts with notes in imported file:');
+          importedWithNotes.forEach((c, idx) => {
+            console.log(`  [${idx + 1}] ${c.firstName} ${c.lastName}: "${c.notes?.substring(0, 100)}${c.notes && c.notes.length > 100 ? '...' : ''}"`);
+          });
+        } else {
+          console.warn('⚠️ WARNING: No contacts with notes found in imported file!');
+          // Check if any contacts have a notes field at all (even if empty)
+          const contactsWithNotesField = importedContacts.filter(c => 'notes' in c);
+          console.log(`  Found ${contactsWithNotesField.length} contacts with 'notes' field (may be empty/null)`);
         }
 
         // Merge strategy: Match by email or (firstName + lastName)
@@ -158,9 +165,12 @@ export default function ChroniclePage() {
             if (finalNotes && finalNotes.trim()) {
               notesUpdatedCount++;
               console.log(`  ✓ Updating "${existing.firstName} ${existing.lastName}" with notes (${finalNotes.length} chars)`);
-              console.log(`    Notes preview: "${finalNotes.substring(0, 80)}..."`);
+              console.log(`    Notes: "${finalNotes}"`);
+              console.log(`    UpdateData.notes:`, updateData.notes);
             } else {
               console.log(`  ✓ Updating "${existing.firstName} ${existing.lastName}" (no notes)`);
+              console.log(`    Imported notes:`, imported.notes);
+              console.log(`    Existing notes:`, existing.notes);
             }
           } else {
             // Add as new contact - preserve all fields including notes
@@ -203,20 +213,48 @@ export default function ChroniclePage() {
           updateContact(id, contact);
         });
         
-        // Verify notes after a short delay
+        // Verify notes after import - read from localStorage directly
         setTimeout(() => {
-          const currentContacts = contacts; // This might be stale, but we'll check after state update
-          console.log('🔍 Post-import verification:');
-          console.log(`  Total contacts after import: ${currentContacts.length}`);
-          const contactsWithNotesAfter = currentContacts.filter(c => c.notes && c.notes.trim());
-          console.log(`  Contacts with notes after import: ${contactsWithNotesAfter.length}`);
-          if (contactsWithNotesAfter.length > 0) {
-            console.log('  Sample contacts with notes:', contactsWithNotesAfter.slice(0, 3).map(c => ({
-              name: `${c.firstName} ${c.lastName}`,
-              notesPreview: c.notes?.substring(0, 60)
-            })));
+          try {
+            // Get user from localStorage since we can't use hooks in setTimeout
+            const userJson = localStorage.getItem('contactChronicle_user');
+            if (userJson) {
+              const user = JSON.parse(userJson);
+              const contactsKey = `contactChronicle_contacts_${user.id}`;
+              const savedContactsJson = localStorage.getItem(contactsKey);
+              if (savedContactsJson) {
+                const savedContacts: Contact[] = JSON.parse(savedContactsJson);
+                console.log('🔍 ===== POST-IMPORT VERIFICATION =====');
+                console.log(`  Total contacts in localStorage: ${savedContacts.length}`);
+                const contactsWithNotesAfter = savedContacts.filter(c => c.notes && c.notes.trim());
+                console.log(`  Contacts with notes in localStorage: ${contactsWithNotesAfter.length}`);
+                
+                if (contactsWithNotesAfter.length > 0) {
+                  console.log('  ✅ Contacts with notes after import:');
+                  contactsWithNotesAfter.slice(0, 10).forEach((c, idx) => {
+                    console.log(`    [${idx + 1}] ${c.firstName} ${c.lastName}: "${c.notes?.substring(0, 100)}${c.notes && c.notes.length > 100 ? '...' : ''}"`);
+                  });
+                } else {
+                  console.error('  ❌ ERROR: No contacts with notes found in localStorage after import!');
+                  // Sample a few contacts to see if notes field exists
+                  console.log('  Sample contacts (first 5) to debug:');
+                  savedContacts.slice(0, 5).forEach(c => {
+                    const hasNotesField = 'notes' in c;
+                    const notesValue = c.notes;
+                    console.log(`    - ${c.firstName} ${c.lastName}:`, {
+                      hasNotesField,
+                      notesValue: notesValue || 'undefined/null/empty',
+                      notesLength: notesValue?.length || 0
+                    });
+                  });
+                }
+                console.log('🔍 =====================================');
+              }
+            }
+          } catch (error) {
+            console.error('Error reading from localStorage for verification:', error);
           }
-        }, 1000);
+        }, 2000);
 
         // Add new contacts in one batch
         if (contactsToAdd.length > 0) {
