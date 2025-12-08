@@ -31,6 +31,19 @@ export default function ChroniclePage() {
 
   // Export contacts to JSON file
   const handleExportContacts = () => {
+    // Filter to only include contacts with notes for debugging
+    const contactsWithNotes = contacts.filter(c => c.notes && c.notes.trim());
+    console.log(`📥 Exporting ${contacts.length} contacts (${contactsWithNotes.length} with notes)`);
+    
+    // Log sample of notes being exported
+    if (contactsWithNotes.length > 0) {
+      console.log('Sample notes being exported:', contactsWithNotes.slice(0, 3).map(c => ({
+        name: `${c.firstName} ${c.lastName}`,
+        notesLength: c.notes?.length || 0,
+        notesPreview: c.notes?.substring(0, 100)
+      })));
+    }
+    
     const dataStr = JSON.stringify(contacts, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
@@ -41,7 +54,9 @@ export default function ChroniclePage() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    alert(`Exported ${contacts.length} contacts to JSON file!`);
+    
+    const notesCount = contactsWithNotes.length;
+    alert(`Exported ${contacts.length} contacts to JSON file!\n${notesCount} contact${notesCount !== 1 ? 's have' : ' has'} notes included.`);
   };
 
   // Import contacts from JSON file
@@ -59,14 +74,25 @@ export default function ChroniclePage() {
           return;
         }
 
+        // Count contacts with notes in imported file
+        const importedWithNotes = importedContacts.filter(c => c.notes && c.notes.trim());
+        console.log(`📤 Importing ${importedContacts.length} contacts (${importedWithNotes.length} with notes)`);
+        
+        if (importedWithNotes.length > 0) {
+          console.log('Sample notes being imported:', importedWithNotes.slice(0, 3).map(c => ({
+            name: `${c.firstName} ${c.lastName}`,
+            notesLength: c.notes?.length || 0,
+            notesPreview: c.notes?.substring(0, 100)
+          })));
+        }
+
         // Merge strategy: Match by email or (firstName + lastName)
         // If match found, update notes and other fields
         // If no match, add as new contact
-        const existingEmails = new Set(contacts.map(c => c.emailAddress?.toLowerCase()).filter(Boolean));
-        const existingNames = new Set(contacts.map(c => `${c.firstName?.toLowerCase()}_${c.lastName?.toLowerCase()}`).filter(Boolean));
-        
         const contactsToUpdate: { id: string; contact: Partial<Contact> }[] = [];
         const contactsToAdd: Contact[] = [];
+        let notesUpdatedCount = 0;
+        let notesAddedCount = 0;
 
         importedContacts.forEach((imported: Contact) => {
           const emailLower = imported.emailAddress?.toLowerCase();
@@ -85,47 +111,93 @@ export default function ChroniclePage() {
           }
 
           if (existing) {
-            // Update existing contact - merge notes and update other fields
-            const mergedNotes = [existing.notes, imported.notes]
-              .filter(Boolean)
-              .join('\n\n');
+            // Update existing contact - prioritize imported notes if they exist
+            // If both exist and are different, merge them
+            const importedHasNotes = imported.notes && imported.notes.trim();
+            const existingHasNotes = existing.notes && existing.notes.trim();
+            
+            let finalNotes = '';
+            if (importedHasNotes && existingHasNotes) {
+              // Both have notes - merge them (imported first, then existing)
+              finalNotes = `${imported.notes}\n\n--- Previously saved ---\n${existing.notes}`;
+            } else if (importedHasNotes) {
+              // Only imported has notes
+              finalNotes = imported.notes;
+            } else if (existingHasNotes) {
+              // Only existing has notes - keep existing
+              finalNotes = existing.notes;
+            }
+            
+            // Build update object - explicitly include notes field ONLY if it has content
+            const updateData: Partial<Contact> = {
+              ...imported,
+              id: existing.id,    // Preserve existing ID
+            };
+            
+            // Only include notes field if there's actual content
+            if (finalNotes && finalNotes.trim()) {
+              updateData.notes = finalNotes;
+            }
+            // If finalNotes is empty, don't include it in updateData so we don't overwrite existing notes
             
             contactsToUpdate.push({
               id: existing.id,
-              contact: {
-                ...imported,
-                notes: mergedNotes || existing.notes || imported.notes,
-                // Preserve existing ID
-                id: existing.id,
-              }
+              contact: updateData,
             });
+            
+            if (finalNotes && finalNotes.trim()) {
+              notesUpdatedCount++;
+              console.log(`  ✓ Updating "${existing.firstName} ${existing.lastName}" with notes (${finalNotes.length} chars)`);
+              console.log(`    Notes preview: "${finalNotes.substring(0, 80)}..."`);
+            } else {
+              console.log(`  ✓ Updating "${existing.firstName} ${existing.lastName}" (no notes)`);
+            }
           } else {
-            // Add as new contact
-            contactsToAdd.push({
+            // Add as new contact - preserve all fields including notes
+            const newContact: Contact = {
               ...imported,
               id: imported.id || `contact-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            });
+            };
+            
+            // Ensure notes field is preserved
+            if (imported.notes) {
+              newContact.notes = imported.notes;
+            }
+            
+            contactsToAdd.push(newContact);
+            
+            if (newContact.notes && newContact.notes.trim()) {
+              notesAddedCount++;
+              console.log(`  + Adding "${newContact.firstName} ${newContact.lastName}" with notes (${newContact.notes.length} chars)`);
+              console.log(`    Notes preview: "${newContact.notes.substring(0, 80)}..."`);
+            } else {
+              console.log(`  + Adding "${newContact.firstName} ${newContact.lastName}" (no notes)`);
+            }
           }
         });
 
-        // Apply updates
+        console.log(`  Summary: ${contactsToUpdate.length} to update (${notesUpdatedCount} with notes), ${contactsToAdd.length} to add (${notesAddedCount} with notes)`);
+
+        // Apply updates - batch them
         contactsToUpdate.forEach(({ id, contact }) => {
           updateContact(id, contact);
         });
 
-        // Add new contacts
+        // Add new contacts in one batch
         if (contactsToAdd.length > 0) {
           addContacts(contactsToAdd);
         }
 
         const totalUpdated = contactsToUpdate.length;
         const totalAdded = contactsToAdd.length;
+        const totalWithNotes = notesUpdatedCount + notesAddedCount;
 
         alert(
           `Import complete!\n` +
-          `- Updated: ${totalUpdated} existing contact(s)\n` +
-          `- Added: ${totalAdded} new contact(s)\n` +
-          `- Total in file: ${importedContacts.length}`
+          `- Updated: ${totalUpdated} existing contact(s) (${notesUpdatedCount} with notes)\n` +
+          `- Added: ${totalAdded} new contact(s) (${notesAddedCount} with notes)\n` +
+          `- Total in file: ${importedContacts.length}\n` +
+          `- Contacts with notes: ${totalWithNotes}`
         );
 
         // Reset file input
