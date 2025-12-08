@@ -37,9 +37,14 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 ### 3. View Chronicle
 - Navigate to "View Chronicle"
 - View statistics about your contacts (total, average per month, peak month, etc.)
-- Explore the interactive chart showing contacts added by month over the last 5 years
+- Explore the interactive chart showing contacts added by quarter over the last 5 years
 - Filter and search your contacts
 - Add notes to individual contacts for future reference
+
+### 4. Location Map
+- Navigate to "Location Map" to see an interactive map of all locations mentioned in your timeline and contact notes
+- Click on any marker to see contacts associated with that location
+- The map automatically updates when you add new locations to your notes
 
 ## Data Storage
 
@@ -52,6 +57,7 @@ All data is stored locally in your browser's localStorage. Your timeline events 
 - **Tailwind CSS** - Styling
 - **Recharts** - Data visualization
 - **PapaParse** - CSV parsing
+- **Leaflet & React-Leaflet** - Interactive map visualization
 
 ## LinkedIn and Google Integration
 
