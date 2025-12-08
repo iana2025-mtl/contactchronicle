@@ -67,11 +67,33 @@ export default function ChroniclePage() {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const importedContacts: Contact[] = JSON.parse(e.target?.result as string);
+        const fileContent = e.target?.result as string;
+        console.log(`📥 FILE READ: ${fileContent.length} characters`);
+        
+        const importedContacts: Contact[] = JSON.parse(fileContent);
         
         if (!Array.isArray(importedContacts)) {
           alert('Invalid file format. Expected an array of contacts.');
           return;
+        }
+        
+        // CRITICAL: Check raw JSON structure for notes field
+        console.log(`📥 PARSED: ${importedContacts.length} contacts`);
+        const firstContactWithNotes = importedContacts.find(c => c.notes && c.notes.trim());
+        if (firstContactWithNotes) {
+          console.log(`📥 FIRST CONTACT WITH NOTES IN FILE:`, {
+            name: `${firstContactWithNotes.firstName} ${firstContactWithNotes.lastName}`,
+            notes: firstContactWithNotes.notes,
+            fullContact: firstContactWithNotes
+          });
+        } else {
+          console.warn(`📥 WARNING: No contacts with notes found in parsed array!`);
+          console.warn(`  Checking first 3 contacts:`, importedContacts.slice(0, 3).map(c => ({
+            name: `${c.firstName} ${c.lastName}`,
+            hasNotes: 'notes' in c,
+            notesValue: c.notes,
+            allKeys: Object.keys(c)
+          })));
         }
 
         // Count contacts with notes in imported file - check for notes field existence
@@ -245,6 +267,11 @@ export default function ChroniclePage() {
             });
             
             // CRITICAL: Create a NEW object and EXPLICITLY include notes field
+            // Use imported.notes directly if it exists, otherwise use updateData.notes
+            const notesToUse = (imported.notes && imported.notes.trim()) 
+              ? imported.notes 
+              : (updateData.notes !== undefined ? updateData.notes : undefined);
+            
             const contactToUpdate: Partial<Contact> = {
               firstName: updateData.firstName,
               lastName: updateData.lastName,
@@ -255,9 +282,17 @@ export default function ChroniclePage() {
               dateEdited: updateData.dateEdited,
               source: updateData.source,
               id: updateData.id,
-              // EXPLICITLY include notes if it exists in updateData OR if imported has notes
-              notes: updateData.notes !== undefined ? updateData.notes : (imported.notes || undefined)
             };
+            
+            // ALWAYS set notes if we have a value from imported or updateData
+            if (notesToUse !== undefined) {
+              contactToUpdate.notes = notesToUse;
+              console.log(`    ✅✅✅ EXPLICITLY SET notes in contactToUpdate: "${notesToUse.substring(0, 60)}..."`);
+            } else if (imported.notes) {
+              // Fallback: if imported has notes (even empty), include it
+              contactToUpdate.notes = imported.notes;
+              console.log(`    🔧 FALLBACK: Set notes from imported.notes: "${imported.notes.substring(0, 60)}..."`);
+            }
             
             console.log(`    🔍 VERIFY contactToUpdate object:`, {
               hasNotesKey: 'notes' in contactToUpdate,
