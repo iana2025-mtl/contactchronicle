@@ -117,17 +117,31 @@ export default function ChroniclePage() {
           const emailLower = imported.emailAddress?.toLowerCase();
           const nameKey = `${imported.firstName?.toLowerCase()}_${imported.lastName?.toLowerCase()}`;
           
-          // Try to find existing contact by email first
-          let existing = contacts.find(c => 
-            c.emailAddress?.toLowerCase() === emailLower && emailLower
-          );
+          // Try to find existing contact by email first (must have email)
+          let existing = contacts.find(c => {
+            const cEmailLower = c.emailAddress?.toLowerCase();
+            return cEmailLower && emailLower && cEmailLower === emailLower;
+          });
           
-          // If not found by email, try by name
+          // If not found by email, try by exact name match
           if (!existing) {
-            existing = contacts.find(c => 
-              `${c.firstName?.toLowerCase()}_${c.lastName?.toLowerCase()}` === nameKey
-            );
+            existing = contacts.find(c => {
+              const cNameKey = `${c.firstName?.toLowerCase()}_${c.lastName?.toLowerCase()}`;
+              return cNameKey === nameKey && cNameKey !== 'first name_last name'; // Exclude placeholder contacts
+            });
           }
+          
+          // Also try matching by ID if present
+          if (!existing && imported.id) {
+            existing = contacts.find(c => c.id === imported.id);
+          }
+          
+          console.log(`  Checking "${imported.firstName} ${imported.lastName}":`, {
+            hasNotes: !!imported.notes,
+            notesPreview: imported.notes?.substring(0, 50),
+            foundExisting: !!existing,
+            existingId: existing?.id
+          });
 
           if (existing) {
             // Update existing contact - prioritize imported notes if they exist
