@@ -80,6 +80,9 @@ const cityCoordinates: Record<string, { lat: number; lng: number }> = {
   'rome, italy': { lat: 41.9028, lng: 12.4964 },
   'roma': { lat: 41.9028, lng: 12.4964 },
   'roma, italy': { lat: 41.9028, lng: 12.4964 },
+  'berlin': { lat: 52.5200, lng: 13.4050 },
+  'berlin, germany': { lat: 52.5200, lng: 13.4050 },
+  'germany': { lat: 51.1657, lng: 10.4515 }, // Center of Germany as fallback
 };
 
 interface LocationPeriod {
@@ -131,28 +134,48 @@ export default function MapPage() {
     console.log('🔍 MAP PAGE: contacts prop changed');
     console.log(`  📊 Contacts array reference:`, contacts);
     console.log(`  📊 Contacts array length: ${contacts.length}`);
-    console.log(`  📝 Contacts with notes: ${contacts.filter(c => c.notes && c.notes.trim()).length}`);
-    console.log(`  📝 Sample contact notes:`, contacts.filter(c => c.notes).slice(0, 3).map(c => ({
+    const contactsWithNotes = contacts.filter(c => c.notes && c.notes.trim());
+    console.log(`  📝 Contacts with notes: ${contactsWithNotes.length}`);
+    
+    // Search for Berlin in notes to help debug
+    const berlinMentions = contacts.filter(c => 
+      c.notes && c.notes.toLowerCase().includes('berlin')
+    );
+    if (berlinMentions.length > 0) {
+      console.log(`  🔍 Found ${berlinMentions.length} contact(s) mentioning Berlin:`, berlinMentions.map(c => ({
+        name: `${c.firstName} ${c.lastName}`,
+        notes: c.notes?.substring(0, 150)
+      })));
+    }
+    
+    console.log(`  📝 Sample contact notes:`, contactsWithNotes.slice(0, 3).map(c => ({
       id: c.id,
       name: `${c.firstName} ${c.lastName}`,
-      notes: c.notes?.substring(0, 50)
+      notes: c.notes?.substring(0, 100)
     })));
   }, [contacts]);
 
   useEffect(() => {
     console.log('🔄 MAP PAGE: Serialized data change detected!');
     console.log(`  📊 Contacts array length: ${contacts.length}`);
-    console.log(`  📝 Contacts with notes: ${contacts.filter(c => c.notes && c.notes.trim()).length}`);
+    const contactsWithNotes = contacts.filter(c => c.notes && c.notes.trim());
+    console.log(`  📝 Contacts with notes: ${contactsWithNotes.length}`);
     console.log(`  📍 Timeline events with geographic: ${timelineEvents.filter(e => e.geographicEvent && e.geographicEvent.trim()).length}`);
     console.log(`  🔑 Contacts serialized hash: ${contactsSerialized.substring(0, 100)}...`);
     
-    // Force map re-render by updating key
+    // Check for Berlin mentions
+    const berlinMentions = contacts.filter(c => c.notes && c.notes.toLowerCase().includes('berlin'));
+    if (berlinMentions.length > 0) {
+      console.log(`  🔍 Berlin mentions found: ${berlinMentions.length}`, berlinMentions.map(c => c.notes?.substring(0, 100)));
+    }
+    
+    // Force map re-render by updating key - this ensures map remounts and recalculates all locations
     setMapKey(prev => {
       const newKey = prev + 1;
-      console.log(`  🗺️ Map key updated from ${prev} to ${newKey}`);
+      console.log(`  🗺️ Map key updated from ${prev} to ${newKey} - map will remount`);
       return newKey;
     });
-  }, [contactsSerialized, timelineSerialized, contacts.length, timelineEvents.length]);
+  }, [contactsSerialized, timelineSerialized]);
 
   // Set up Leaflet icons once when component mounts
   useEffect(() => {
@@ -333,40 +356,72 @@ export default function MapPage() {
       }
     }
     
-    // Also try pattern matching for "City, State", "City State", "City, Country", etc.
+    // Also try pattern matching for "City, State", "City State", "City, Country", "City Country", etc.
+    // Pattern order matters - more specific patterns first
     const patterns = [
-      /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),?\s+([A-Z]{2})\b/g, // "New York, NY" or "New York NY" or "Ottawa CA"
-      /\b([A-Z][a-z]+),?\s+([A-Z]{2})\b/g, // Single-word cities: "Ottawa CA" or "Ottawa, CA"
-      /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),?\s+([A-Z][a-z]+)\b/g, // "Virginia Beach, VA" or "Warsaw Poland"
+      /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*,\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g, // "Berlin, Germany" or "New York, NY"
+      /\b([A-Z][a-z]+)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g, // "Berlin Germany" or "New York NY" or "Virginia Beach VA" (space separated)
+      /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),?\s+([A-Z]{2})\b/g, // "New York, NY" or "New York NY" or "Ottawa CA" (2-letter code)
       /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+City\b/gi, // "New York City"
     ];
     
     for (const pattern of patterns) {
       let match;
+      // Reset regex lastIndex to avoid issues with global regex
+      pattern.lastIndex = 0;
       while ((match = pattern.exec(noteText)) !== null) {
         if (match[1]) {
           let cityToCheck = match[1].trim();
           if (match[2]) {
-            // Check if match[2] is a state code (2 letters) or country/state name
-            if (match[2].length === 2 && /^[A-Z]{2}$/.test(match[2])) {
-              cityToCheck = `${cityToCheck}, ${match[2]}`;
+            const secondPart = match[2].trim();
+            
+            // Check if match[2] is a state code (2 letters)
+            if (secondPart.length === 2 && /^[A-Z]{2}$/.test(secondPart)) {
+              cityToCheck = `${cityToCheck}, ${secondPart}`;
             } else {
-              // It's a country or state name, try with comma
-              const withComma = `${cityToCheck}, ${match[2]}`;
+              // It's a country or state name (e.g., "Germany", "Poland", "Florida")
+              // Try both with and without comma
+              const withComma = `${cityToCheck}, ${secondPart}`;
+              const withoutComma = `${cityToCheck} ${secondPart}`;
+              
+              // Check with comma first
               const coordsWithComma = getCityCoordinates(withComma);
               if (coordsWithComma) {
                 if (!locations.some(loc => loc.toLowerCase() === withComma.toLowerCase())) {
                   locations.push(withComma);
+                  console.log(`  ✅ Pattern matched "${withComma}" from notes`);
+                }
+                continue;
+              }
+              
+              // Check without comma
+              const coordsWithoutComma = getCityCoordinates(withoutComma);
+              if (coordsWithoutComma) {
+                if (!locations.some(loc => loc.toLowerCase() === withoutComma.toLowerCase())) {
+                  locations.push(withoutComma);
+                  console.log(`  ✅ Pattern matched "${withoutComma}" from notes`);
+                }
+                continue;
+              }
+              
+              // Also try just the city name
+              const coordsCity = getCityCoordinates(cityToCheck);
+              if (coordsCity) {
+                if (!locations.some(loc => loc.toLowerCase() === cityToCheck.toLowerCase())) {
+                  locations.push(cityToCheck);
+                  console.log(`  ✅ Pattern matched "${cityToCheck}" from notes`);
                 }
                 continue;
               }
             }
           }
           
+          // Try the city name alone if we haven't found it yet
           const coords = getCityCoordinates(cityToCheck);
           if (coords) {
             if (!locations.some(loc => loc.toLowerCase() === cityToCheck.toLowerCase())) {
               locations.push(cityToCheck);
+              console.log(`  ✅ Pattern matched "${cityToCheck}" from notes`);
             }
           }
         }
@@ -479,10 +534,13 @@ export default function MapPage() {
       
       if (locations.length > 0) {
         locationsFoundCount += locations.length;
+        console.log(`  📍 Contact ${contact.firstName} ${contact.lastName}: Found ${locations.length} location(s):`, locations);
+        
         locations.forEach(locationName => {
           const coordinates = getCityCoordinates(locationName);
           if (!coordinates) {
             console.warn(`⚠️ No coordinates found for location: "${locationName}" in contact ${contact.firstName} ${contact.lastName}`);
+            console.warn(`   Note snippet: "${contact.notes?.substring(0, 100)}..."`);
             return;
           }
           
@@ -791,7 +849,7 @@ export default function MapPage() {
                 <div className="w-full h-[400px] sm:h-[500px] lg:h-[600px] relative min-h-[400px]">
                   {locationPeriods.length > 0 && (
                     <MapContainer
-                      key={`map-${mapKey}-${locationPeriods.length}-${locationPeriods.map(p => `${p.city}-${p.coordinates.lat}-${p.coordinates.lng}`).join('-')}`}
+                      key={`map-${mapKey}-${contactsSerialized.substring(0, 100).replace(/[^a-zA-Z0-9]/g, '')}-${locationPeriods.length}`}
                       center={[mapCenter.lat, mapCenter.lng]}
                       zoom={locationPeriods.length === 1 ? 10 : 2}
                       minZoom={2}
