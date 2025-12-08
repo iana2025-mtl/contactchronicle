@@ -116,29 +116,39 @@ export default function ChroniclePage() {
             const importedHasNotes = imported.notes && imported.notes.trim();
             const existingHasNotes = existing.notes && existing.notes.trim();
             
-            let finalNotes = '';
+            let finalNotes: string | undefined = undefined;
             if (importedHasNotes && existingHasNotes) {
-              // Both have notes - merge them (imported first, then existing)
-              finalNotes = `${imported.notes}\n\n--- Previously saved ---\n${existing.notes}`;
+              // Both have notes - prefer imported (newer), but merge if different
+              if (imported.notes !== existing.notes) {
+                finalNotes = `${imported.notes}\n\n--- Previously saved ---\n${existing.notes}`;
+              } else {
+                finalNotes = imported.notes; // Same notes, use imported
+              }
             } else if (importedHasNotes) {
-              // Only imported has notes
+              // Only imported has notes - use it
               finalNotes = imported.notes;
             } else if (existingHasNotes) {
               // Only existing has notes - keep existing
               finalNotes = existing.notes;
             }
             
-            // Build update object - explicitly include notes field ONLY if it has content
+            // Build update object - copy fields from imported but explicitly handle notes
             const updateData: Partial<Contact> = {
-              ...imported,
-              id: existing.id,    // Preserve existing ID
+              firstName: imported.firstName || existing.firstName,
+              lastName: imported.lastName || existing.lastName,
+              emailAddress: imported.emailAddress || existing.emailAddress,
+              phoneNumber: imported.phoneNumber || existing.phoneNumber,
+              linkedInProfile: imported.linkedInProfile || existing.linkedInProfile,
+              dateAdded: imported.dateAdded || existing.dateAdded,
+              dateEdited: imported.dateEdited || existing.dateEdited,
+              source: imported.source || existing.source,
+              id: existing.id,    // Always preserve existing ID
             };
             
-            // Only include notes field if there's actual content
-            if (finalNotes && finalNotes.trim()) {
+            // Explicitly set notes field if we have a value
+            if (finalNotes !== undefined) {
               updateData.notes = finalNotes;
             }
-            // If finalNotes is empty, don't include it in updateData so we don't overwrite existing notes
             
             contactsToUpdate.push({
               id: existing.id,
@@ -155,14 +165,17 @@ export default function ChroniclePage() {
           } else {
             // Add as new contact - preserve all fields including notes
             const newContact: Contact = {
-              ...imported,
               id: imported.id || `contact-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              firstName: imported.firstName || '',
+              lastName: imported.lastName || '',
+              emailAddress: imported.emailAddress,
+              phoneNumber: imported.phoneNumber,
+              linkedInProfile: imported.linkedInProfile,
+              dateAdded: imported.dateAdded,
+              dateEdited: imported.dateEdited,
+              source: imported.source,
+              notes: imported.notes, // Explicitly preserve notes field
             };
-            
-            // Ensure notes field is preserved
-            if (imported.notes) {
-              newContact.notes = imported.notes;
-            }
             
             contactsToAdd.push(newContact);
             
@@ -178,10 +191,32 @@ export default function ChroniclePage() {
 
         console.log(`  Summary: ${contactsToUpdate.length} to update (${notesUpdatedCount} with notes), ${contactsToAdd.length} to add (${notesAddedCount} with notes)`);
 
+        // Log all updates with notes before applying
+        contactsToUpdate.forEach(({ id, contact }) => {
+          if (contact.notes) {
+            console.log(`  🔄 Will update contact ${id} with notes: "${contact.notes.substring(0, 60)}..."`);
+          }
+        });
+
         // Apply updates - batch them
         contactsToUpdate.forEach(({ id, contact }) => {
           updateContact(id, contact);
         });
+        
+        // Verify notes after a short delay
+        setTimeout(() => {
+          const currentContacts = contacts; // This might be stale, but we'll check after state update
+          console.log('🔍 Post-import verification:');
+          console.log(`  Total contacts after import: ${currentContacts.length}`);
+          const contactsWithNotesAfter = currentContacts.filter(c => c.notes && c.notes.trim());
+          console.log(`  Contacts with notes after import: ${contactsWithNotesAfter.length}`);
+          if (contactsWithNotesAfter.length > 0) {
+            console.log('  Sample contacts with notes:', contactsWithNotesAfter.slice(0, 3).map(c => ({
+              name: `${c.firstName} ${c.lastName}`,
+              notesPreview: c.notes?.substring(0, 60)
+            })));
+          }
+        }, 1000);
 
         // Add new contacts in one batch
         if (contactsToAdd.length > 0) {
