@@ -212,17 +212,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
     console.log('📝 CONTEXT: updateContact called');
     console.log(`  - Contact ID: ${id}`);
     console.log(`  - Updated fields:`, Object.keys(contact));
+    console.log(`  - Full update object:`, contact);
     if (contact.notes) {
-      console.log(`  - New notes preview: "${contact.notes.substring(0, 100)}..."`);
+      console.log(`  - New notes value: "${contact.notes}"`);
+      console.log(`  - Notes length: ${contact.notes.length}`);
+    } else {
+      console.log(`  - ⚠️ WARNING: contact.notes is undefined/null/empty!`);
+      console.log(`  - contact object:`, JSON.stringify(contact, null, 2));
     }
-    console.log(`  - Current contacts array reference:`, contacts);
+    
+    // Find the existing contact
+    const existingContact = contacts.find(c => c.id === id);
+    if (existingContact) {
+      console.log(`  - Existing contact notes: "${existingContact.notes || 'none'}"`);
+    }
+    
     console.log(`  - Current contacts array length: ${contacts.length}`);
     
     // Create a COMPLETELY NEW array (not just mapped, but spread to ensure new reference)
     const updatedContacts = [...contacts.map(c => {
       if (c.id === id) {
         // Create a new object with updated fields
-        return { ...c, ...contact };
+        const updated = { ...c, ...contact };
+        console.log(`  - Merged contact object:`, updated);
+        if (updated.notes) {
+          console.log(`  - ✅ Merged contact HAS notes: "${updated.notes.substring(0, 100)}..."`);
+        } else {
+          console.log(`  - ❌ Merged contact MISSING notes!`);
+        }
+        return updated;
       }
       return c;
     })];
@@ -230,12 +248,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     console.log(`  - Contacts before update: ${contacts.length}`);
     console.log(`  - Contacts after update: ${updatedContacts.length}`);
     console.log(`  - Reference changed: ${contacts !== updatedContacts}`);
-    console.log(`  - First contact reference changed: ${contacts[0] !== updatedContacts[0]}`);
     
     // Verify the update actually happened
     const updatedContact = updatedContacts.find(c => c.id === id);
-    if (updatedContact && contact.notes) {
-      console.log(`  ✅ Verified updated contact has new notes: "${updatedContact.notes?.substring(0, 50)}..."`);
+    if (updatedContact) {
+      console.log(`  - Updated contact in array:`, {
+        id: updatedContact.id,
+        name: `${updatedContact.firstName} ${updatedContact.lastName}`,
+        hasNotes: !!updatedContact.notes,
+        notesValue: updatedContact.notes || 'undefined/null',
+        notesLength: updatedContact.notes?.length || 0
+      });
+      if (updatedContact.notes) {
+        console.log(`  ✅ Verified updated contact has notes: "${updatedContact.notes.substring(0, 50)}..."`);
+      } else {
+        console.log(`  ❌ ERROR: Updated contact missing notes field!`);
+      }
+    } else {
+      console.log(`  ❌ ERROR: Could not find updated contact in array!`);
     }
     
     // CRITICAL: Set state with new array reference
@@ -249,6 +279,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       try {
         localStorage.setItem(contactsKey, JSON.stringify(updatedContacts));
         console.log(`  ✅ Saved to localStorage`);
+        
+        // Verify what was actually saved
+        const savedJson = localStorage.getItem(contactsKey);
+        if (savedJson) {
+          const savedContacts = JSON.parse(savedJson);
+          const savedContact = savedContacts.find((c: Contact) => c.id === id);
+          if (savedContact) {
+            console.log(`  - Saved contact notes in localStorage:`, savedContact.notes ? `"${savedContact.notes.substring(0, 50)}..."` : 'MISSING!');
+          }
+        }
       } catch (error) {
         console.error('Error saving contacts immediately:', error);
       }

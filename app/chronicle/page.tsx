@@ -242,11 +242,20 @@ export default function ChroniclePage() {
                     const hasNotesField = 'notes' in c;
                     const notesValue = c.notes;
                     console.log(`    - ${c.firstName} ${c.lastName}:`, {
+                      id: c.id,
                       hasNotesField,
                       notesValue: notesValue || 'undefined/null/empty',
-                      notesLength: notesValue?.length || 0
+                      notesLength: notesValue?.length || 0,
+                      fullContact: c // Show full contact object
                     });
                   });
+                  
+                  // Also check if any contact has notes field at all (even empty)
+                  const contactsWithNotesField = savedContacts.filter(c => 'notes' in c);
+                  console.log(`  Contacts with 'notes' field (even if empty): ${contactsWithNotesField.length}`);
+                  
+                  // Check raw JSON to see if notes are there
+                  console.log('  Raw JSON sample (first contact):', JSON.stringify(savedContacts[0], null, 2));
                 }
                 console.log('🔍 =====================================');
               }
