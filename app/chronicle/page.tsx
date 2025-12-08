@@ -85,12 +85,24 @@ export default function ChroniclePage() {
           console.log('📤 All contacts with notes in imported file:');
           importedWithNotes.forEach((c, idx) => {
             console.log(`  [${idx + 1}] ${c.firstName} ${c.lastName}: "${c.notes?.substring(0, 100)}${c.notes && c.notes.length > 100 ? '...' : ''}"`);
+            console.log(`      Full notes:`, c.notes);
           });
         } else {
           console.warn('⚠️ WARNING: No contacts with notes found in imported file!');
           // Check if any contacts have a notes field at all (even if empty)
           const contactsWithNotesField = importedContacts.filter(c => 'notes' in c);
           console.log(`  Found ${contactsWithNotesField.length} contacts with 'notes' field (may be empty/null)`);
+          
+          // Sample first few contacts to see their structure
+          console.log('  Sample contacts from imported file (first 3):');
+          importedContacts.slice(0, 3).forEach((c, idx) => {
+            console.log(`    [${idx + 1}] ${c.firstName} ${c.lastName}:`, {
+              hasNotesField: 'notes' in c,
+              notesValue: c.notes,
+              notesType: typeof c.notes,
+              fullContact: c
+            });
+          });
         }
 
         // Merge strategy: Match by email or (firstName + lastName)
@@ -476,6 +488,43 @@ export default function ChroniclePage() {
                 ref={fileInputRef}
               />
             </label>
+            <button
+              onClick={() => {
+                try {
+                  const userJson = localStorage.getItem('contactChronicle_user');
+                  if (userJson) {
+                    const user = JSON.parse(userJson);
+                    const contactsKey = `contactChronicle_contacts_${user.id}`;
+                    const savedContactsJson = localStorage.getItem(contactsKey);
+                    if (savedContactsJson) {
+                      const savedContacts: Contact[] = JSON.parse(savedContactsJson);
+                      const contactsWithNotes = savedContacts.filter(c => c.notes && c.notes.trim());
+                      console.log('🔍 LOCALSTORAGE DIAGNOSTIC:');
+                      console.log(`  Total contacts: ${savedContacts.length}`);
+                      console.log(`  Contacts with notes: ${contactsWithNotes.length}`);
+                      if (contactsWithNotes.length > 0) {
+                        console.log('  Contacts with notes:');
+                        contactsWithNotes.slice(0, 10).forEach((c, idx) => {
+                          console.log(`    [${idx + 1}] ${c.firstName} ${c.lastName}: "${c.notes}"`);
+                        });
+                      } else {
+                        console.log('  ❌ No contacts with notes found');
+                        console.log('  Sample contact (first):', savedContacts[0]);
+                        console.log('  Full JSON (first contact):', JSON.stringify(savedContacts[0], null, 2));
+                      }
+                      alert(`Diagnostic complete! Check console.\nTotal: ${savedContacts.length}\nWith notes: ${contactsWithNotes.length}`);
+                    }
+                  }
+                } catch (error) {
+                  console.error('Diagnostic error:', error);
+                  alert('Error running diagnostic. Check console.');
+                }
+              }}
+              className="px-4 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors whitespace-nowrap font-medium"
+              title="Check what's actually saved in localStorage"
+            >
+              🔍 Check Data
+            </button>
           </div>
         </div>
 
