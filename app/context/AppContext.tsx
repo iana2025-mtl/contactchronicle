@@ -232,13 +232,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Create a COMPLETELY NEW array (not just mapped, but spread to ensure new reference)
     const updatedContacts = [...contacts.map(c => {
       if (c.id === id) {
-        // Create a new object with updated fields
-        const updated = { ...c, ...contact };
+        // CRITICAL: Preserve notes field explicitly - don't let undefined overwrite existing notes
+        const updated = { 
+          ...c, 
+          ...contact,
+          // Explicitly preserve notes if it's in the contact update, otherwise keep existing
+          notes: contact.notes !== undefined ? contact.notes : c.notes
+        };
         console.log(`  - Merged contact object:`, updated);
+        console.log(`  - Contact update had notes:`, contact.notes ? `"${contact.notes.substring(0, 50)}..."` : 'NO');
+        console.log(`  - Original contact had notes:`, c.notes ? `"${c.notes.substring(0, 50)}..."` : 'NO');
         if (updated.notes) {
           console.log(`  - ✅ Merged contact HAS notes: "${updated.notes.substring(0, 100)}..."`);
         } else {
           console.log(`  - ❌ Merged contact MISSING notes!`);
+          console.log(`  - Contact update object keys:`, Object.keys(contact));
+          console.log(`  - 'notes' in contact:`, 'notes' in contact);
         }
         return updated;
       }
