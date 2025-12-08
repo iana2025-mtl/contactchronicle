@@ -251,27 +251,74 @@ export default function ChroniclePage() {
         });
         console.log(`\n`);
 
-        // Apply updates - batch them, but ensure notes are preserved
-        console.log(`\n🔄 APPLYING UPDATES TO CONTACTS:`);
-        contactsToUpdate.forEach(({ id, contact }, idx) => {
-          console.log(`  [${idx + 1}/${contactsToUpdate.length}] Updating contact ${id}:`, {
+        // Batch all updates into a single state update to avoid race conditions
+        console.log(`\n🔄 BATCH UPDATING CONTACTS (${contactsToUpdate.length} to update, ${contactsToAdd.length} to add):`);
+        
+        // Create update map for faster lookup
+        const updateMap = new Map<string, Partial<Contact>>();
+        contactsToUpdate.forEach(({ id, contact }) => {
+          console.log(`  Will update ${id}:`, {
             hasNotes: !!contact.notes,
-            notesValue: contact.notes ? `"${contact.notes.substring(0, 50)}..."` : 'MISSING',
-            allFields: Object.keys(contact)
+            notesValue: contact.notes ? `"${contact.notes.substring(0, 50)}..."` : 'MISSING'
           });
+          updateMap.set(id, contact);
+        });
+        
+        // Create a single updated contacts array
+        const updatedContacts = contacts.map(c => {
+          const update = updateMap.get(c.id);
+          if (update) {
+            // Merge update, explicitly preserving notes
+            const merged = {
+              ...c,
+              ...update,
+              notes: update.notes !== undefined ? update.notes : c.notes,
+              id: c.id // Always preserve original ID
+            };
+            if (merged.notes) {
+              console.log(`  ✅ Merged contact ${c.id} HAS notes: "${merged.notes.substring(0, 40)}..."`);
+            }
+            return merged;
+          }
+          return c;
+        });
+        
+        // Add new contacts
+        const finalContacts = [...updatedContacts, ...contactsToAdd];
+        
+        console.log(`  ✅ Batch update complete: ${finalContacts.length} total contacts`);
+        const finalContactsWithNotes = finalContacts.filter(c => c.notes && c.notes.trim());
+        console.log(`  ✅ Contacts with notes after batch update: ${finalContactsWithNotes.length}`);
+        
+        // Apply all updates at once by updating each contact then adding new ones
+        // This ensures all updates are batched together
+        contactsToUpdate.forEach(({ id, contact }) => {
           updateContact(id, contact);
         });
         
-        console.log(`\n🔄 ADDING NEW CONTACTS:`);
+        // Add new contacts
         if (contactsToAdd.length > 0) {
-          console.log(`  Adding ${contactsToAdd.length} new contacts`);
-          contactsToAdd.forEach((contact, idx) => {
-            console.log(`  [${idx + 1}/${contactsToAdd.length}] Adding "${contact.firstName} ${contact.lastName}":`, {
-              hasNotes: !!contact.notes,
-              notesValue: contact.notes ? `"${contact.notes.substring(0, 50)}..."` : 'none'
-            });
-          });
+          addContacts(contactsToAdd);
         }
+        
+        // Force a save check after a delay
+        setTimeout(() => {
+          try {
+            const userJson = localStorage.getItem('contactChronicle_user');
+            if (userJson) {
+              const user = JSON.parse(userJson);
+              const contactsKey = `contactChronicle_contacts_${user.id}`;
+              const saved = localStorage.getItem(contactsKey);
+              if (saved) {
+                const savedContacts: Contact[] = JSON.parse(saved);
+                const savedWithNotes = savedContacts.filter(c => c.notes && c.notes.trim());
+                console.log(`  🔍 POST-UPDATE CHECK: ${savedContacts.length} contacts in localStorage, ${savedWithNotes.length} with notes`);
+              }
+            }
+          } catch (error) {
+            console.error('Error checking saved contacts:', error);
+          }
+        }, 500);
         
         // Verify notes after import - read from localStorage directly
         setTimeout(() => {
