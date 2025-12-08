@@ -16,6 +16,7 @@ export default function Header() {
     { href: '/timeline', label: 'My Timeline' },
     { href: '/upload', label: 'Upload Contacts' },
     { href: '/chronicle', label: 'View Chronicle' },
+    { href: '/map', label: 'Location Map' },
   ];
 
   const handleLogout = () => {

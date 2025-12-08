@@ -222,8 +222,8 @@ export default function ChroniclePage() {
           <div className="mb-3">
             <h3 className="text-base sm:text-lg font-medium mb-3 text-purple-800">Contacts Added by Quarter (5 Years)</h3>
             {isClient ? (
-              <div className="w-full h-[300px] sm:h-[400px] lg:h-[450px]">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="w-full h-[300px] sm:h-[400px] lg:h-[450px] min-h-[300px]" style={{ minHeight: '300px' }}>
+                <ResponsiveContainer width="100%" height="100%" minHeight={300} minWidth={300}>
                   <BarChart 
                     data={contactsByQuarter}
                     margin={{ top: 20, right: 20, left: 60, bottom: 80 }}

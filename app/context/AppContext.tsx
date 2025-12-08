@@ -209,14 +209,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateContact = (id: string, contact: Partial<Contact>) => {
-    const updatedContacts = contacts.map(c => c.id === id ? { ...c, ...contact } : c);
+    console.log('📝 CONTEXT: updateContact called');
+    console.log(`  - Contact ID: ${id}`);
+    console.log(`  - Updated fields:`, Object.keys(contact));
+    if (contact.notes) {
+      console.log(`  - New notes preview: "${contact.notes.substring(0, 100)}..."`);
+    }
+    console.log(`  - Current contacts array reference:`, contacts);
+    console.log(`  - Current contacts array length: ${contacts.length}`);
+    
+    // Create a COMPLETELY NEW array (not just mapped, but spread to ensure new reference)
+    const updatedContacts = [...contacts.map(c => {
+      if (c.id === id) {
+        // Create a new object with updated fields
+        return { ...c, ...contact };
+      }
+      return c;
+    })];
+    
+    console.log(`  - Contacts before update: ${contacts.length}`);
+    console.log(`  - Contacts after update: ${updatedContacts.length}`);
+    console.log(`  - Reference changed: ${contacts !== updatedContacts}`);
+    console.log(`  - First contact reference changed: ${contacts[0] !== updatedContacts[0]}`);
+    
+    // Verify the update actually happened
+    const updatedContact = updatedContacts.find(c => c.id === id);
+    if (updatedContact && contact.notes) {
+      console.log(`  ✅ Verified updated contact has new notes: "${updatedContact.notes?.substring(0, 50)}..."`);
+    }
+    
+    // CRITICAL: Set state with new array reference
     setContacts(updatedContacts);
+    
+    console.log(`  ✅ setContacts called with new array`);
     
     // Immediately save to localStorage if user is logged in and data is loaded
     if (user && isDataLoaded) {
       const contactsKey = `contactChronicle_contacts_${user.id}`;
       try {
         localStorage.setItem(contactsKey, JSON.stringify(updatedContacts));
+        console.log(`  ✅ Saved to localStorage`);
       } catch (error) {
         console.error('Error saving contacts immediately:', error);
       }
