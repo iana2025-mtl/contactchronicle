@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -17,16 +17,128 @@ const Tooltip = dynamic(() => import('recharts').then((mod) => mod.Tooltip), { s
 const ResponsiveContainer = dynamic(() => import('recharts').then((mod) => mod.ResponsiveContainer), { ssr: false });
 
 export default function ChroniclePage() {
-  const { contacts, updateContact } = useApp();
+  const { contacts, updateContact, addContacts } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSource, setSelectedSource] = useState<string>('all');
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [notes, setNotes] = useState('');
   const [isClient, setIsClient] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Export contacts to JSON file
+  const handleExportContacts = () => {
+    const dataStr = JSON.stringify(contacts, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `contactchronicle-export-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    alert(`Exported ${contacts.length} contacts to JSON file!`);
+  };
+
+  // Import contacts from JSON file
+  const handleImportContacts = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const importedContacts: Contact[] = JSON.parse(e.target?.result as string);
+        
+        if (!Array.isArray(importedContacts)) {
+          alert('Invalid file format. Expected an array of contacts.');
+          return;
+        }
+
+        // Merge strategy: Match by email or (firstName + lastName)
+        // If match found, update notes and other fields
+        // If no match, add as new contact
+        const existingEmails = new Set(contacts.map(c => c.emailAddress?.toLowerCase()).filter(Boolean));
+        const existingNames = new Set(contacts.map(c => `${c.firstName?.toLowerCase()}_${c.lastName?.toLowerCase()}`).filter(Boolean));
+        
+        const contactsToUpdate: { id: string; contact: Partial<Contact> }[] = [];
+        const contactsToAdd: Contact[] = [];
+
+        importedContacts.forEach((imported: Contact) => {
+          const emailLower = imported.emailAddress?.toLowerCase();
+          const nameKey = `${imported.firstName?.toLowerCase()}_${imported.lastName?.toLowerCase()}`;
+          
+          // Try to find existing contact by email first
+          let existing = contacts.find(c => 
+            c.emailAddress?.toLowerCase() === emailLower && emailLower
+          );
+          
+          // If not found by email, try by name
+          if (!existing) {
+            existing = contacts.find(c => 
+              `${c.firstName?.toLowerCase()}_${c.lastName?.toLowerCase()}` === nameKey
+            );
+          }
+
+          if (existing) {
+            // Update existing contact - merge notes and update other fields
+            const mergedNotes = [existing.notes, imported.notes]
+              .filter(Boolean)
+              .join('\n\n');
+            
+            contactsToUpdate.push({
+              id: existing.id,
+              contact: {
+                ...imported,
+                notes: mergedNotes || existing.notes || imported.notes,
+                // Preserve existing ID
+                id: existing.id,
+              }
+            });
+          } else {
+            // Add as new contact
+            contactsToAdd.push({
+              ...imported,
+              id: imported.id || `contact-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            });
+          }
+        });
+
+        // Apply updates
+        contactsToUpdate.forEach(({ id, contact }) => {
+          updateContact(id, contact);
+        });
+
+        // Add new contacts
+        if (contactsToAdd.length > 0) {
+          addContacts(contactsToAdd);
+        }
+
+        const totalUpdated = contactsToUpdate.length;
+        const totalAdded = contactsToAdd.length;
+
+        alert(
+          `Import complete!\n` +
+          `- Updated: ${totalUpdated} existing contact(s)\n` +
+          `- Added: ${totalAdded} new contact(s)\n` +
+          `- Total in file: ${importedContacts.length}`
+        );
+
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      } catch (error) {
+        console.error('Error importing contacts:', error);
+        alert('Error importing contacts. Please check the file format.');
+      }
+    };
+    reader.readAsText(file);
+  };
 
   // Process contacts by quarter
   const contactsByQuarter = useMemo(() => {
@@ -188,7 +300,37 @@ export default function ChroniclePage() {
       <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
         <Header />
       <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 sm:mb-6 text-purple-800">View Chronicle</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-purple-800">View Chronicle</h1>
+          
+          {/* Export/Import Controls */}
+          <div className="flex flex-wrap gap-2 sm:gap-3">
+            <button
+              onClick={handleExportContacts}
+              className="px-4 py-2 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors whitespace-nowrap font-medium"
+              title="Export all contacts (with notes) to JSON file"
+            >
+              📥 Export Contacts
+            </button>
+            <label className="px-4 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors whitespace-nowrap font-medium cursor-pointer">
+              📤 Import Contacts
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleImportContacts}
+                className="hidden"
+                ref={fileInputRef}
+              />
+            </label>
+          </div>
+        </div>
+
+        {/* Info box for export/import */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
+          <p className="text-xs sm:text-sm text-blue-700">
+            <strong>💡 Transfer your data:</strong> Use <strong>Export Contacts</strong> to download all your contacts with notes from localhost, then <strong>Import Contacts</strong> on production to upload them. Existing contacts will be updated (notes merged), new ones will be added.
+          </p>
+        </div>
 
         {/* Connections Dashboard */}
         <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6 bg-gradient-to-br from-white to-purple-50">
