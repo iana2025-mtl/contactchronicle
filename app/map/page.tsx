@@ -790,6 +790,9 @@ export default function MapPage() {
     );
   }
 
+  const contactsWithNotes = contacts.filter(c => c.notes && c.notes.trim());
+  const timelineGeoEvents = timelineEvents.filter(e => e.geographicEvent && e.geographicEvent.trim());
+
   return (
     <ProtectedRoute>
       <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
@@ -799,23 +802,53 @@ export default function MapPage() {
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-purple-800">
               Location Map
             </h1>
-            {locationPeriods.length > 0 && (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    setMapKey(prev => prev + 1);
-                    console.log('🔄 Manual map refresh triggered');
-                  }}
-                  className="px-4 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors whitespace-nowrap"
-                  title="Refresh map to see updated locations"
-                >
-                  🔄 Refresh Map
-                </button>
-                <div className="px-4 py-2 text-sm bg-purple-50 text-purple-600 rounded-lg">
-                  📍 {locationPeriods.length} location{locationPeriods.length !== 1 ? 's' : ''}
+            <div className="flex gap-2 flex-wrap">
+              {locationPeriods.length > 0 && (
+                <>
+                  <button
+                    onClick={() => {
+                      setMapKey(prev => prev + 1);
+                      console.log('🔄 Manual map refresh triggered');
+                    }}
+                    className="px-4 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors whitespace-nowrap"
+                    title="Refresh map to see updated locations"
+                  >
+                    🔄 Refresh Map
+                  </button>
+                  <div className="px-4 py-2 text-sm bg-purple-50 text-purple-600 rounded-lg">
+                    📍 {locationPeriods.length} location{locationPeriods.length !== 1 ? 's' : ''}
+                  </div>
+                </>
+              )}
+              {/* Debug info button - always show to help diagnose production issues */}
+              <details className="px-4 py-2 text-xs bg-blue-50 text-blue-700 rounded-lg cursor-pointer">
+                <summary className="font-semibold">📊 Data Info</summary>
+                <div className="absolute mt-2 p-3 bg-white border border-purple-200 rounded-lg shadow-lg z-50 text-left min-w-[250px]">
+                  <p className="font-bold mb-2 text-purple-800">Current Data:</p>
+                  <p>📍 Timeline events: {timelineEvents.length}</p>
+                  <p>🌍 Geographic events: {timelineGeoEvents.length}</p>
+                  <p>👥 Total contacts: {contacts.length}</p>
+                  <p>📝 Contacts with notes: {contactsWithNotes.length}</p>
+                  <p className="mt-2 pt-2 border-t border-purple-200">
+                    <span className="font-bold">Map locations: {locationPeriods.length}</span>
+                  </p>
+                  <p className="text-xs text-purple-500 mt-2">
+                    Timeline: {locationPeriods.filter(p => p.source === 'timeline').length}<br/>
+                    Notes: {locationPeriods.filter(p => p.source === 'notes').length}
+                  </p>
+                  {contactsWithNotes.length > 0 && (
+                    <p className="text-xs text-green-600 mt-2">
+                      ✓ You have {contactsWithNotes.length} contact{contactsWithNotes.length !== 1 ? 's' : ''} with notes
+                    </p>
+                  )}
+                  {contactsWithNotes.length === 0 && contacts.length > 0 && (
+                    <p className="text-xs text-orange-600 mt-2">
+                      ⚠️ No contacts have notes. Add notes mentioning cities to see more locations on the map.
+                    </p>
+                  )}
                 </div>
-              </div>
-            )}
+              </details>
+            </div>
           </div>
 
           {locationPeriods.length === 0 ? (
@@ -827,8 +860,31 @@ export default function MapPage() {
                 Add geographic events in your timeline (e.g., &quot;Moved to New York, NY&quot;) or mention locations in contact notes to see them on the map.
               </p>
               <p className="text-xs text-purple-400 mt-2">
-                Supported cities: New York, Long Island, Montreal, San Francisco, Los Angeles, Chicago, Boston, and more.
+                Supported cities: New York, Long Island, Montreal, San Francisco, Los Angeles, Chicago, Boston, Warsaw, Virginia Beach, Ottawa, Tampa, Rome, Berlin, and more.
               </p>
+              <div className="mt-4 p-3 bg-purple-50 rounded-lg text-left text-xs text-purple-600">
+                <p className="font-semibold mb-2">Current Data Status:</p>
+                <p>📍 Timeline events: {timelineEvents.length}</p>
+                <p>🌍 Geographic events: {timelineGeoEvents.length}</p>
+                <p>👥 Total contacts: {contacts.length}</p>
+                <p>📝 Contacts with notes: {contactsWithNotes.length}</p>
+                {contactsWithNotes.length === 0 && contacts.length > 0 && (
+                  <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded">
+                    <p className="font-semibold text-orange-800 mb-1">💡 Tip:</p>
+                    <p className="text-orange-700">
+                      You have contacts but no notes yet. Go to "View Chronicle", click on a contact, and add notes mentioning cities (e.g., "Met in New York, NY" or "Lives in Berlin Germany") to see them on the map.
+                    </p>
+                  </div>
+                )}
+                {contacts.length === 0 && (
+                  <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded">
+                    <p className="font-semibold text-blue-800 mb-1">💡 Tip:</p>
+                    <p className="text-blue-700">
+                      You don't have any contacts yet. Go to "Upload Contacts" to import your contacts from LinkedIn or Google.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <>
@@ -841,6 +897,11 @@ export default function MapPage() {
                     <p className="text-xs sm:text-sm text-purple-500">
                       Found {locationPeriods.length} location{locationPeriods.length !== 1 ? 's' : ''} ({locationPeriods.filter(p => p.source === 'timeline').length} from timeline, {locationPeriods.filter(p => p.source === 'notes').length} from notes)
                     </p>
+                    {process.env.NODE_ENV === 'development' && (
+                      <p className="text-xs text-purple-400 mt-1">
+                        Debug: {contacts.length} contacts, {contacts.filter(c => c.notes && c.notes.trim()).length} with notes
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
