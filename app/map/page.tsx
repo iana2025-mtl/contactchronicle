@@ -555,11 +555,20 @@ export default function MapPage() {
       }
     });
 
-    // Process contact notes
-    contactsWithNotes.forEach(contact => {
+    // Process contact notes - CRITICAL: Process ALL contacts with notes
+    console.log(`  📝 Processing ${contactsWithNotes.length} contacts with notes for location extraction`);
+    
+    contactsWithNotes.forEach((contact, contactIdx) => {
+      console.log(`    [${contactIdx + 1}/${contactsWithNotes.length}] Processing: ${contact.firstName} ${contact.lastName}`);
       const locations = extractLocationsFromNotes(contact);
       
-      locations.forEach(locationName => {
+      if (locations.length === 0) {
+        console.log(`      ⚠️ No locations extracted from this contact's notes`);
+      } else {
+        console.log(`      ✅ Extracted ${locations.length} location(s) from notes`);
+      }
+      
+      locations.forEach((locationName, locIdx) => {
         const cityData = getCityCoordinates(locationName);
         if (!cityData || !validateCoordinates(cityData)) {
           console.warn(`  ⚠️ No valid coordinates for note location: "${locationName}"`);
@@ -570,19 +579,22 @@ export default function MapPage() {
         
         if (!markersMap.has(coordKey)) {
           markersMap.set(coordKey, {
-            id: `notes-${contact.id}-${Date.now()}`,
+            id: `notes-${contact.id}-${locationName}-${contactIdx}-${locIdx}`,
             city: locationName,
             displayName: cityData.displayName,
             coordinates: { lat: cityData.lat, lng: cityData.lng },
             contacts: [],
             source: 'notes',
           });
-          console.log(`  ✅ Added notes marker: ${cityData.displayName} at [${cityData.lat}, ${cityData.lng}]`);
+          console.log(`      ✅ Created new marker: ${cityData.displayName} at [${cityData.lat}, ${cityData.lng}]`);
+        } else {
+          console.log(`      📍 Marker already exists for: ${cityData.displayName}`);
         }
 
         const marker = markersMap.get(coordKey)!;
         if (!marker.contacts.find(c => c.id === contact.id)) {
           marker.contacts = [...marker.contacts, contact];
+          console.log(`      ✅ Added contact to marker: ${cityData.displayName}`);
         }
       });
     });
