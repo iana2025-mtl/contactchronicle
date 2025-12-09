@@ -207,6 +207,20 @@ export default function ChroniclePage() {
         let notesUpdatedCount = 0;
         let notesAddedCount = 0;
 
+        // Create a map of imported contacts by ID, email, and name for efficient lookup
+        const importedByID = new Map<string, Contact>();
+        const importedByEmail = new Map<string, Contact>();
+        const importedByName = new Map<string, Contact>();
+        
+        importedContacts.forEach(ic => {
+          if (ic.id) importedByID.set(ic.id, ic);
+          if (ic.emailAddress) importedByEmail.set(ic.emailAddress.toLowerCase(), ic);
+          const nameKey = `${ic.firstName?.toLowerCase()}_${ic.lastName?.toLowerCase()}`;
+          if (nameKey && nameKey !== 'first name_last name') {
+            importedByName.set(nameKey, ic);
+          }
+        });
+
         importedContacts.forEach((imported: Contact) => {
           const emailLower = imported.emailAddress?.toLowerCase();
           const nameKey = `${imported.firstName?.toLowerCase()}_${imported.lastName?.toLowerCase()}`;
@@ -215,11 +229,15 @@ export default function ChroniclePage() {
           // If IDs don't match (contacts were transferred before), use email or name
           let existing = null;
           let matchMethod = 'none';
+          let importedMatch: Contact | null = imported; // Keep reference to imported for verification
           
           // Method 1: Try matching by ID first (most reliable if IDs match)
           if (imported.id) {
             existing = contacts.find(c => c.id === imported.id);
-            if (existing) matchMethod = 'ID';
+            if (existing) {
+              matchMethod = 'ID';
+              importedMatch = imported; // Use the imported contact itself
+            }
           }
           
           // Method 2: Try by email if ID match failed (must have email)
@@ -228,16 +246,24 @@ export default function ChroniclePage() {
               const cEmailLower = c.emailAddress?.toLowerCase();
               return cEmailLower && cEmailLower === emailLower;
             });
-            if (existing) matchMethod = 'EMAIL';
+            if (existing) {
+              matchMethod = 'EMAIL';
+              // Find imported contact by email to get its notes
+              importedMatch = importedByEmail.get(emailLower) || imported;
+            }
           }
           
           // Method 3: Try by exact name match if email match failed
-          if (!existing) {
+          if (!existing && nameKey && nameKey !== 'first name_last name') {
             existing = contacts.find(c => {
               const cNameKey = `${c.firstName?.toLowerCase()}_${c.lastName?.toLowerCase()}`;
               return cNameKey === nameKey && cNameKey !== 'first name_last name'; // Exclude placeholder contacts
             });
-            if (existing) matchMethod = 'NAME';
+            if (existing) {
+              matchMethod = 'NAME';
+              // Find imported contact by name to get its notes
+              importedMatch = importedByName.get(nameKey) || imported;
+            }
           }
           
           console.log(`  🔍 Match result for "${imported.firstName} ${imported.lastName}":`, {
@@ -245,7 +271,8 @@ export default function ChroniclePage() {
             method: matchMethod,
             existingId: existing?.id,
             importedId: imported.id,
-            idsMatch: existing?.id === imported.id
+            idsMatch: existing?.id === imported.id,
+            importedMatchHasNotes: importedMatch?.notes && importedMatch.notes.trim().length > 0
           });
           
           // Check if imported contact has notes - be very explicit
@@ -273,26 +300,27 @@ export default function ChroniclePage() {
 
           if (existing) {
             // STEP 1: Build base contact object with ALL fields
+            // Use importedMatch instead of imported to get the correct notes
             const contactToUpdate: Partial<Contact> = {
               id: existing.id, // Always preserve existing ID
-              firstName: imported.firstName || existing.firstName || '',
-              lastName: imported.lastName || existing.lastName || '',
-              emailAddress: imported.emailAddress ?? existing.emailAddress ?? '',
-              phoneNumber: imported.phoneNumber ?? existing.phoneNumber ?? '',
-              linkedInProfile: imported.linkedInProfile ?? existing.linkedInProfile ?? '',
-              dateAdded: imported.dateAdded || existing.dateAdded || '',
-              dateEdited: imported.dateEdited ?? existing.dateEdited ?? '',
-              source: imported.source || existing.source || 'Uploaded',
+              firstName: importedMatch.firstName || existing.firstName || '',
+              lastName: importedMatch.lastName || existing.lastName || '',
+              emailAddress: importedMatch.emailAddress ?? existing.emailAddress ?? '',
+              phoneNumber: importedMatch.phoneNumber ?? existing.phoneNumber ?? '',
+              linkedInProfile: importedMatch.linkedInProfile ?? existing.linkedInProfile ?? '',
+              dateAdded: importedMatch.dateAdded || existing.dateAdded || '',
+              dateEdited: importedMatch.dateEdited ?? existing.dateEdited ?? '',
+              source: importedMatch.source || existing.source || 'Uploaded',
             };
             
-            // STEP 2: Handle notes - SIMPLIFIED LOGIC
-            // Priority: imported.notes > existing.notes > undefined
-            if (imported.notes !== undefined && imported.notes !== null) {
+            // STEP 2: Handle notes - Use importedMatch which has the correct notes
+            // Priority: importedMatch.notes > existing.notes > undefined
+            if (importedMatch.notes !== undefined && importedMatch.notes !== null) {
               // Imported has notes (even if empty string) - use it
-              contactToUpdate.notes = imported.notes;
-              if (imported.notes.trim().length > 0) {
+              contactToUpdate.notes = importedMatch.notes;
+              if (importedMatch.notes.trim().length > 0) {
                 notesUpdatedCount++;
-                console.log(`  ✅ [${notesUpdatedCount}] "${imported.firstName} ${imported.lastName}" - Notes: "${imported.notes.substring(0, 50)}..."`);
+                console.log(`  ✅ [${notesUpdatedCount}] "${importedMatch.firstName} ${importedMatch.lastName}" - Notes: "${importedMatch.notes.substring(0, 50)}..."`);
               }
             } else if (existing.notes) {
               // Imported has no notes, keep existing
@@ -314,32 +342,37 @@ export default function ChroniclePage() {
               jsonString: JSON.stringify(contactToUpdate).substring(0, 200)
             });
             
-            // STEP 4: EMERGENCY CHECK - if imported had notes but contactToUpdate doesn't, FORCE ADD
-            const importedHasRealNotes = imported.notes && imported.notes.trim().length > 0;
+            // STEP 4: EMERGENCY CHECK - if importedMatch had notes but contactToUpdate doesn't, FORCE ADD
+            const importedHasRealNotes = importedMatch.notes && importedMatch.notes.trim().length > 0;
             if (importedHasRealNotes && (!contactToUpdate.notes || !contactToUpdate.notes.trim())) {
-              console.error(`  ❌❌❌ EMERGENCY: Imported had notes but contactToUpdate missing!`);
-              console.error(`    Imported: "${imported.notes}"`);
+              console.error(`  ❌❌❌ EMERGENCY: ImportedMatch had notes but contactToUpdate missing!`);
+              console.error(`    ImportedMatch: "${importedMatch.notes}"`);
               console.error(`    Before force - contactToUpdate keys:`, Object.keys(contactToUpdate));
-              contactToUpdate.notes = imported.notes; // Force add
+              contactToUpdate.notes = importedMatch.notes; // Force add
               console.error(`  🔧🔧🔧 FORCE ADDED: "${contactToUpdate.notes}"`);
               if (notesUpdatedCount === 0 || !contactsToUpdate.find(u => u.id === existing.id)) {
                 notesUpdatedCount++; // Only count if not already counted
               }
             }
             
-            // STEP 5: FINAL CHECK before pushing
+            // STEP 5: FINAL CHECK before pushing - ensure notes are present
             if (importedHasRealNotes && (!contactToUpdate.notes || !contactToUpdate.notes.trim())) {
               console.error(`  ❌❌❌ STILL MISSING NOTES AFTER FORCE ADD!`);
               console.error(`    contactToUpdate:`, JSON.stringify(contactToUpdate, null, 2));
               // Last resort: create new object with notes explicitly
               contactsToUpdate.push({
                 id: existing.id,
-                contact: { ...contactToUpdate, notes: imported.notes! },
+                contact: { ...contactToUpdate, notes: importedMatch.notes! },
               });
             } else {
+              // Final verification: ensure notes field is explicitly set if importedMatch had it
+              const finalContactToUpdate = importedMatch.notes !== undefined 
+                ? { ...contactToUpdate, notes: importedMatch.notes }
+                : contactToUpdate;
+              
               contactsToUpdate.push({
                 id: existing.id,
-                contact: contactToUpdate,
+                contact: finalContactToUpdate,
               });
             }
           } else {
