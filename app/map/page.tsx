@@ -1285,18 +1285,21 @@ export default function MapPage() {
                     className="z-10"
                     ref={(map) => {
                       if (map) {
-                        const mapInstance = map.target || map;
-                        mapInstanceRef.current = mapInstance;
+                        // react-leaflet ref provides the map instance directly
+                        mapInstanceRef.current = map as any;
                         setMapReady(true);
                         console.log('🗺️ Map container ready');
                         
                         // Set up user interaction tracking
+                        const mapInstance = map as any;
                         const handleUserInteraction = () => {
                           userInteractedRef.current = true;
                         };
                         
-                        mapInstance.on('zoomstart', handleUserInteraction);
-                        mapInstance.on('dragstart', handleUserInteraction);
+                        if (mapInstance.on) {
+                          mapInstance.on('zoomstart', handleUserInteraction);
+                          mapInstance.on('dragstart', handleUserInteraction);
+                        }
                       }
                     }}
                   >
