@@ -781,6 +781,67 @@ export default function MapPage() {
     console.log(`🗺️ ====================================`);
   }, [locationPeriods, mapKey, contacts, timelineEvents]);
 
+  // Fit map bounds when locations or mapReady changes
+  useEffect(() => {
+    if (!mapReady || !locationPeriods.length || !mapBounds) return;
+    
+    // Wait for map to be fully initialized
+    const fitBoundsTimeout = setTimeout(() => {
+      try {
+        const L = require('leaflet');
+        if (!L) return;
+        
+        // Get map instance from Leaflet's internal registry
+        const maps = (L.Map as any)?._instances;
+        if (!maps || maps.size === 0) {
+          console.warn('⚠️ No map instances found, retrying...');
+          return;
+        }
+        
+        // Get the most recent map instance
+        const map = Array.from(maps.values())[maps.size - 1] as any;
+        if (!map) {
+          console.warn('⚠️ Map instance not found');
+          return;
+        }
+        
+        // Verify map has necessary methods and is initialized
+        if (typeof map.fitBounds !== 'function') {
+          console.warn('⚠️ map.fitBounds is not a function');
+          return;
+        }
+        
+        // Check if map container exists (map is rendered)
+        if (!map._container || !map._container._leaflet_id) {
+          console.warn('⚠️ Map container not initialized');
+          return;
+        }
+        
+        // Store map instance
+        mapInstanceRef.current = map;
+        
+        // Create bounds and fit
+        const leafletBounds = L.latLngBounds(mapBounds[0], mapBounds[1]);
+        const isWorldwide = Math.abs(mapBounds[1][1] - mapBounds[0][1]) > 50;
+        const padding = isWorldwide ? [150, 150] : [100, 100];
+        const maxZoomLevel = isWorldwide ? 10 : 12;
+        
+        map.fitBounds(leafletBounds, { 
+          padding, 
+          maxZoom: maxZoomLevel,
+          animate: true 
+        });
+        
+        console.log(`🗺️ Map fitted to bounds for ${locationPeriods.length} markers`);
+        console.log(`   Bounds: [${mapBounds[0][0]}, ${mapBounds[0][1]}] to [${mapBounds[1][0]}, ${mapBounds[1][1]}]`);
+      } catch (error) {
+        console.error('❌ Error fitting map bounds:', error);
+      }
+    }, 800); // Increased delay to ensure map is fully ready
+    
+    return () => clearTimeout(fitBoundsTimeout);
+  }, [mapReady, locationPeriods, mapBounds]);
+
   // Calculate map center
   const mapCenter = useMemo(() => {
     if (locationPeriods.length === 0) {
@@ -937,76 +998,9 @@ export default function MapPage() {
                       minZoom={2}
                       maxZoom={18}
                       style={{ height: '100%', width: '100%', zIndex: 0 }}
-                      whenReady={(mapEvent: any) => {
+                      whenReady={() => {
                         setMapReady(true);
                         console.log('🗺️ Map container ready with', locationPeriods.length, 'locations');
-                        
-                        // Use a longer delay and ensure map is fully initialized
-                        setTimeout(() => {
-                          try {
-                            const L = require('leaflet');
-                            if (!L) {
-                              console.error('❌ Leaflet not available');
-                              return;
-                            }
-                            
-                            // Try multiple ways to get the map instance
-                            let map = mapEvent?.target;
-                            
-                            // If mapEvent.target doesn't work, try to get it from DOM
-                            if (!map || typeof map.fitBounds !== 'function') {
-                              const mapElement = document.querySelector('.leaflet-container') as any;
-                              if (mapElement && mapElement._leaflet_id) {
-                                const maps = (L.Map as any)?._instances;
-                                if (maps && maps.size > 0) {
-                                  map = Array.from(maps.values())[maps.size - 1];
-                                }
-                              }
-                            }
-                            
-                            // Verify map instance is valid
-                            if (!map) {
-                              console.error('❌ Map instance not found');
-                              return;
-                            }
-                            
-                            if (typeof map.fitBounds !== 'function') {
-                              console.error('❌ map.fitBounds is not a function');
-                              return;
-                            }
-                            
-                            // Store map instance for future use
-                            mapInstanceRef.current = map;
-                            
-                            // Only fit bounds if we have valid bounds and locations
-                            if (mapBounds && locationPeriods.length > 0) {
-                              try {
-                                const leafletBounds = L.latLngBounds(mapBounds[0], mapBounds[1]);
-                                const isWorldwide = Math.abs(mapBounds[1][1] - mapBounds[0][1]) > 50;
-                                const padding = isWorldwide ? [150, 150] : [100, 100];
-                                const maxZoomLevel = isWorldwide ? 10 : 12;
-                                
-                                // Ensure map is fully initialized before fitting bounds
-                                if (map._loaded || map._container) {
-                                  map.fitBounds(leafletBounds, { 
-                                    padding, 
-                                    maxZoom: maxZoomLevel,
-                                    animate: true 
-                                  });
-                                  
-                                  console.log(`🗺️ Map fitted to bounds for ${locationPeriods.length} markers`);
-                                  console.log(`   Bounds: [${mapBounds[0][0]}, ${mapBounds[0][1]}] to [${mapBounds[1][0]}, ${mapBounds[1][1]}]`);
-                                } else {
-                                  console.warn('⚠️ Map not fully loaded, skipping fitBounds');
-                                }
-                              } catch (boundsError) {
-                                console.error('❌ Error creating bounds or fitting:', boundsError);
-                              }
-                            }
-                          } catch (error) {
-                            console.error('❌ Error in whenReady callback:', error);
-                          }
-                        }, 500); // Increased delay to ensure map is fully initialized
                       }}
                     >
                       <TileLayer
