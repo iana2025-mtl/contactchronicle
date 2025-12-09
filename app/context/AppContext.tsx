@@ -155,8 +155,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (user && isDataLoaded) {
       const timelineKey = `contactChronicle_timeline_${user.id}`;
       try {
-        localStorage.setItem(timelineKey, JSON.stringify(timelineEvents));
-        console.log(`💾 Timeline auto-saved: ${timelineEvents.length} events`);
+        // Only save if we have data - don't overwrite with empty arrays on initial load
+        if (timelineEvents.length > 0) {
+          localStorage.setItem(timelineKey, JSON.stringify(timelineEvents));
+          console.log(`💾 Timeline auto-saved: ${timelineEvents.length} events`);
+        } else {
+          // Check if there's existing data before overwriting
+          const existing = localStorage.getItem(timelineKey);
+          if (existing && JSON.parse(existing).length > 0) {
+            console.log(`⚠️ Timeline is empty but existing data found - not overwriting`);
+            return; // Don't overwrite existing data with empty array
+          }
+        }
         
         // Dispatch event immediately after saving
         setTimeout(() => {
@@ -174,20 +184,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (user && isDataLoaded && !batchUpdateInProgressRef.current) {
       const contactsKey = `contactChronicle_contacts_${user.id}`;
       try {
-        // Log before saving to verify notes are in the contacts array
-        const contactsWithNotes = contacts.filter(c => c.notes && c.notes.trim());
-        if (contactsWithNotes.length > 0) {
-          console.log(`💾 AUTO-SAVE: Saving ${contacts.length} contacts, ${contactsWithNotes.length} with notes`);
-        }
-        localStorage.setItem(contactsKey, JSON.stringify(contacts));
-        
-        // Verify what was saved
-        const savedJson = localStorage.getItem(contactsKey);
-        if (savedJson) {
-          const savedContacts: Contact[] = JSON.parse(savedJson);
-          const savedWithNotes = savedContacts.filter(c => c.notes && c.notes.trim());
-          if (savedWithNotes.length !== contactsWithNotes.length) {
-            console.error(`⚠️ WARNING: Notes count mismatch! Before save: ${contactsWithNotes.length}, After save: ${savedWithNotes.length}`);
+        // Only save if we have data - don't overwrite with empty arrays on initial load
+        if (contacts.length > 0) {
+          // Log before saving to verify notes are in the contacts array
+          const contactsWithNotes = contacts.filter(c => c.notes && c.notes.trim());
+          if (contactsWithNotes.length > 0) {
+            console.log(`💾 AUTO-SAVE: Saving ${contacts.length} contacts, ${contactsWithNotes.length} with notes`);
+          }
+          localStorage.setItem(contactsKey, JSON.stringify(contacts));
+          
+          // Verify what was saved
+          const savedJson = localStorage.getItem(contactsKey);
+          if (savedJson) {
+            const savedContacts: Contact[] = JSON.parse(savedJson);
+            const savedWithNotes = savedContacts.filter(c => c.notes && c.notes.trim());
+            if (savedWithNotes.length !== contactsWithNotes.length) {
+              console.error(`⚠️ WARNING: Notes count mismatch! Before save: ${contactsWithNotes.length}, After save: ${savedWithNotes.length}`);
+            }
+          }
+        } else {
+          // Check if there's existing data before overwriting
+          const existing = localStorage.getItem(contactsKey);
+          if (existing && JSON.parse(existing).length > 0) {
+            console.log(`⚠️ Contacts array is empty but existing data found (${JSON.parse(existing).length} contacts) - not overwriting`);
+            return; // Don't overwrite existing data with empty array
           }
         }
       } catch (error) {
