@@ -724,6 +724,38 @@ export default function ChroniclePage() {
             <button
               onClick={() => {
                 try {
+                  // Diagnostic: Check current localStorage data
+                  const userJson = localStorage.getItem('contactChronicle_user');
+                  if (userJson) {
+                    const user = JSON.parse(userJson);
+                    const contactsKey = `contactChronicle_contacts_${user.id}`;
+                    const contactsJson = localStorage.getItem(contactsKey);
+                    if (contactsJson) {
+                      const contacts: Contact[] = JSON.parse(contactsJson);
+                      const withNotes = contacts.filter(c => c.notes && c.notes.trim());
+                      alert(
+                        `📊 CURRENT DATA STATUS\n` +
+                        `Total contacts: ${contacts.length}\n` +
+                        `Contacts with notes: ${withNotes.length}\n` +
+                        `\nSample contacts with notes:\n` +
+                        (withNotes.length > 0 
+                          ? withNotes.slice(0, 3).map(c => `- ${c.firstName} ${c.lastName}: "${c.notes?.substring(0, 40)}..."`).join('\n')
+                          : 'None found')
+                      );
+                    }
+                  }
+                } catch (error) {
+                  alert('Error checking data: ' + error);
+                }
+              }}
+              className="px-4 py-2 text-sm bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors whitespace-nowrap font-medium"
+              title="Check current data status"
+            >
+              🔍 Check Data
+            </button>
+            <button
+              onClick={() => {
+                try {
                   const userJson = localStorage.getItem('contactChronicle_user');
                   if (userJson) {
                     const user = JSON.parse(userJson);
