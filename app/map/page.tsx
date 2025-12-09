@@ -174,13 +174,24 @@ export default function MapPage() {
     console.log(`  📍 Timeline events with geographic: ${timelineEvents.filter(e => e.geographicEvent && e.geographicEvent.trim()).length}`);
     console.log(`  🔑 Contacts notes hash: ${contactsNotesHash.substring(0, 100)}...`);
     
+    // Check for Zurich specifically
+    const zurichMentions = contacts.filter(c => 
+      c.notes && c.notes.toLowerCase().includes('zurich')
+    );
+    if (zurichMentions.length > 0) {
+      console.log(`  🇨🇭 Found ${zurichMentions.length} contact(s) mentioning Zurich:`, zurichMentions.map(c => ({
+        name: `${c.firstName} ${c.lastName}`,
+        notes: c.notes?.substring(0, 150)
+      })));
+    }
+    
     // Force map re-render by updating key - this ensures map remounts and recalculates all locations
     setMapKey(prev => {
       const newKey = prev + 1;
       console.log(`  🗺️ Map key updated from ${prev} to ${newKey} - map will remount and recalculate all markers`);
       return newKey;
     });
-  }, [contactsNotesHash, timelineSerialized, contacts.length]); // Add contacts.length as extra trigger
+  }, [contactsNotesHash, timelineSerialized, contacts.length, contacts]); // Add full contacts array as dependency to catch any changes
 
   // Set up Leaflet icons once when component mounts
   useEffect(() => {
