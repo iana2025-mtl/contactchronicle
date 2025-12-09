@@ -400,7 +400,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
         
         // Build merged contact - remove notes from update spread to prevent undefined overwrite
-        const { notes: _, ...updateWithoutNotes } = update;
+        // Safari compatibility: Use Object destructuring with rest to exclude notes
+        const updateWithoutNotes = { ...update };
+        delete updateWithoutNotes.notes; // Explicitly remove notes property
+        
         const merged: Contact = {
           ...c,
           ...updateWithoutNotes,
@@ -408,6 +411,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
           notes: finalNotes,
           id: c.id // Always preserve original ID
         };
+        
+        // Safari compatibility: Verify notes are actually in the merged object
+        if (finalNotes && !merged.notes) {
+          console.error(`  ⚠️⚠️⚠️ SAFARI BUG: Notes were set but merged object missing them!`);
+          console.error(`  Force-adding notes to merged object`);
+          merged.notes = finalNotes;
+        }
         
         if (merged.notes && merged.notes.trim()) {
           console.error(`  ✅✅✅ Merged contact ${c.id} HAS notes: "${merged.notes.substring(0, 50)}..."`);
