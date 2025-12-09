@@ -59,874 +59,305 @@ export default function ChroniclePage() {
     alert(`Exported ${contacts.length} contacts to JSON file!\n${notesCount} contact${notesCount !== 1 ? 's have' : ' has'} notes included.`);
   };
 
-  // Import contacts from JSON file
-  const handleImportContacts = (event: React.ChangeEvent<HTMLInputElement>) => {
-    // CRITICAL: Log IMMEDIATELY when function is called
-    console.error(`🚨🚨🚨 HANDLE IMPORT CALLED 🚨🚨🚨`);
-    window.alert(`🚨 FUNCTION CALLED\nhandleImportContacts was triggered!\n\nClick OK...`);
-    
+  // SIMPLIFIED Import contacts from JSON file - DIAGNOSTIC VERSION
+  const handleImportContacts = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
-      window.alert('❌ No file selected!');
-      console.error(`🚨 NO FILE SELECTED`);
+      alert('❌ No file selected!');
       return;
     }
 
-    // ALERT immediately to confirm import started - use window.alert to ensure it shows
-    window.alert(`📤 IMPORT STARTED\nReading file: ${file.name}\nSize: ${(file.size / 1024).toFixed(2)} KB\n\nClick OK to continue...`);
-    console.log(`🚀🚀🚀 IMPORT FUNCTION CALLED - FILE: ${file.name}`);
+    try {
+      // Read file as text
+      const fileContent = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.onerror = reject;
+        reader.readAsText(file);
+      });
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const fileContent = e.target?.result as string;
-        console.log(`📥 FILE READ: ${fileContent.length} characters`);
-        
-        // Check raw file content for notes before parsing
-        const notesInRawFile = (fileContent.match(/"notes":\s*"[^"]+"/g) || []).length;
-        alert(`📥 FILE PARSING\nFile size: ${fileContent.length} chars\nFound "${notes": "..." strings: ${notesInRawFile}`);
-        
-        const importedContacts: Contact[] = JSON.parse(fileContent);
-        
-        if (!Array.isArray(importedContacts)) {
-          alert('Invalid file format. Expected an array of contacts.');
-          return;
-        }
-        
-        // CRITICAL: Immediately after parsing, check raw structure
-        console.log(`📥 PARSED: ${importedContacts.length} contacts`);
-        
-        // Check first few contacts IMMEDIATELY after parsing
-        console.log(`📥 FIRST 3 CONTACTS AFTER PARSING:`, importedContacts.slice(0, 3).map(c => ({
-          name: `${c.firstName} ${c.lastName}`,
-          hasNotesKey: 'notes' in c,
-          notesValue: c.notes,
-          notesType: typeof c.notes,
-          notesLength: c.notes?.length,
-          allKeys: Object.keys(c),
-          fullContact: c
-        })));
-        
-        // Count contacts with notes IMMEDIATELY after parsing (before any processing)
-        const notesCountImmediate = importedContacts.filter(c => {
-          return 'notes' in c && c.notes && typeof c.notes === 'string' && c.notes.trim().length > 0;
-        }).length;
-        console.log(`📥 IMMEDIATE NOTES COUNT: ${notesCountImmediate} contacts have notes (checked right after parsing)`);
-        const contactsWithNotesKey = importedContacts.filter(c => 'notes' in c);
-        const contactsWithNotesValue = importedContacts.filter(c => c.notes && typeof c.notes === 'string' && c.notes.trim().length > 0);
-        
-        // ALERT: Show notes status (can't be filtered)
-        alert(`📥 FILE PARSED\nTotal: ${importedContacts.length}\nWith 'notes' key: ${contactsWithNotesKey.length}\nWith notes content: ${contactsWithNotesValue.length}`);
-        
-        const firstContactWithNotes = importedContacts.find(c => c.notes && c.notes.trim());
-        if (firstContactWithNotes) {
-          console.log(`📥 FIRST CONTACT WITH NOTES IN FILE:`, {
-            name: `${firstContactWithNotes.firstName} ${firstContactWithNotes.lastName}`,
-            notes: firstContactWithNotes.notes,
-            fullContact: firstContactWithNotes
-          });
-          console.log(`📥 FULL JSON:`, JSON.stringify(firstContactWithNotes, null, 2));
-        } else {
-          console.warn(`📥 WARNING: No contacts with notes found in parsed array!`);
-          console.warn(`  Checking first 3 contacts:`, importedContacts.slice(0, 3).map(c => ({
-            name: `${c.firstName} ${c.lastName}`,
-            hasNotes: 'notes' in c,
-            notesValue: c.notes,
-            allKeys: Object.keys(c)
-          })));
-          // Show full structure of first contact
-          if (importedContacts.length > 0) {
-            console.log(`📥 FULL FIRST CONTACT JSON:`, JSON.stringify(importedContacts[0], null, 2));
-          }
-        }
-
-        // Count contacts with notes in imported file - check for notes field existence
-        // BE MORE LENIENT - check if notes field exists and has any value
-        const importedWithNotes = importedContacts.filter(c => {
-          // Check multiple ways: 'notes' in object, notes property exists, notes has content
-          const hasNotesKey = 'notes' in c;
-          const hasNotesValue = c.notes !== undefined && c.notes !== null;
-          const hasNotesString = typeof c.notes === 'string' && c.notes.trim().length > 0;
-          const hasNotes = hasNotesKey && hasNotesValue && hasNotesString;
-          
-          if (hasNotes) {
-            console.log(`📤 Found contact with notes: "${c.firstName} ${c.lastName}" - "${c.notes.substring(0, 60)}..."`);
-          } else if (hasNotesKey) {
-            // Has notes key but value might be empty/null - log it
-            console.log(`⚠️ Contact "${c.firstName} ${c.lastName}" has notes key but value is:`, c.notes, `(type: ${typeof c.notes})`);
-          }
-          return hasNotes;
-        });
-        
-        // ALERT to show import status (can't be filtered) - use window.alert
-        window.alert(`📤 IMPORT STARTING\nTotal contacts: ${importedContacts.length}\nContacts with notes: ${importedWithNotes.length}\n\nClick OK to start processing...`);
-        console.log(`📤 IMPORT PROCESSING: ${importedContacts.length} contacts, ${importedWithNotes.length} with notes`);
-        
-        console.log(`📤 ===== IMPORT STARTING =====`);
-        console.log(`📤 Importing ${importedContacts.length} total contacts`);
-        console.log(`📤 Contacts with notes in file: ${importedWithNotes.length}`);
-        
-        if (importedWithNotes.length === 0) {
-          console.warn(`⚠️⚠️⚠️ WARNING: Import detected 0 contacts with notes, but import message says 27!`);
-          console.warn(`  Checking first 5 contacts for notes field:`);
-          importedContacts.slice(0, 5).forEach((c, idx) => {
-            console.warn(`    [${idx + 1}] ${c.firstName} ${c.lastName}:`, {
-              hasNotesProperty: 'notes' in c,
-              notesValue: c.notes,
-              notesType: typeof c.notes,
-              notesLength: c.notes?.length
-            });
-          });
-        }
-        
-        // Log all contacts with notes for debugging
-        if (importedWithNotes.length > 0) {
-          console.log('📤 All contacts with notes in imported file:');
-          importedWithNotes.forEach((c, idx) => {
-            console.log(`  [${idx + 1}] ${c.firstName} ${c.lastName}: "${c.notes?.substring(0, 100)}${c.notes && c.notes.length > 100 ? '...' : ''}"`);
-            console.log(`      Full notes:`, c.notes);
-          });
-        } else {
-          console.warn('⚠️ WARNING: No contacts with notes found in imported file!');
-          // Check if any contacts have a notes field at all (even if empty)
-          const contactsWithNotesField = importedContacts.filter(c => 'notes' in c);
-          console.log(`  Found ${contactsWithNotesField.length} contacts with 'notes' field (may be empty/null)`);
-          
-          // Sample first few contacts to see their structure
-          console.log('  Sample contacts from imported file (first 3):');
-          importedContacts.slice(0, 3).forEach((c, idx) => {
-            console.log(`    [${idx + 1}] ${c.firstName} ${c.lastName}:`, {
-              hasNotesField: 'notes' in c,
-              notesValue: c.notes,
-              notesType: typeof c.notes,
-              fullContact: c
-            });
-          });
-        }
-
-        // Merge strategy: Match by email or (firstName + lastName)
-        // If match found, update notes and other fields
-        // If no match, add as new contact
-        const contactsToUpdate: { id: string; contact: Partial<Contact> }[] = [];
-        const contactsToAdd: Contact[] = [];
-        let notesUpdatedCount = 0;
-        let notesAddedCount = 0;
-
-        // Create a map of imported contacts by ID, email, and name for efficient lookup
-        const importedByID = new Map<string, Contact>();
-        const importedByEmail = new Map<string, Contact>();
-        const importedByName = new Map<string, Contact>();
-        
-        importedContacts.forEach(ic => {
-          if (ic.id) importedByID.set(ic.id, ic);
-          if (ic.emailAddress) importedByEmail.set(ic.emailAddress.toLowerCase(), ic);
-          const nameKey = `${ic.firstName?.toLowerCase()}_${ic.lastName?.toLowerCase()}`;
-          if (nameKey && nameKey !== 'first name_last name') {
-            importedByName.set(nameKey, ic);
-          }
-        });
-
-        importedContacts.forEach((imported: Contact) => {
-          const emailLower = imported.emailAddress?.toLowerCase();
-          const nameKey = `${imported.firstName?.toLowerCase()}_${imported.lastName?.toLowerCase()}`;
-          
-          // Try to find existing contact - prioritize ID match (most reliable)
-          // If IDs don't match (contacts were transferred before), use email or name
-          let existing = null;
-          let matchMethod = 'none';
-          let importedMatch: Contact | null = imported; // Keep reference to imported for verification
-          
-          // Method 1: Try matching by ID first (most reliable if IDs match)
-          if (imported.id) {
-            existing = contacts.find(c => c.id === imported.id);
-            if (existing) {
-              matchMethod = 'ID';
-              importedMatch = imported; // Use the imported contact itself
-            }
-          }
-          
-          // Method 2: Try by email if ID match failed (must have email)
-          if (!existing && emailLower) {
-            existing = contacts.find(c => {
-              const cEmailLower = c.emailAddress?.toLowerCase();
-              return cEmailLower && cEmailLower === emailLower;
-            });
-            if (existing) {
-              matchMethod = 'EMAIL';
-              // Find imported contact by email to get its notes
-              importedMatch = importedByEmail.get(emailLower) || imported;
-            }
-          }
-          
-          // Method 3: Try by exact name match if email match failed
-          if (!existing && nameKey && nameKey !== 'first name_last name') {
-            existing = contacts.find(c => {
-              const cNameKey = `${c.firstName?.toLowerCase()}_${c.lastName?.toLowerCase()}`;
-              return cNameKey === nameKey && cNameKey !== 'first name_last name'; // Exclude placeholder contacts
-            });
-            if (existing) {
-              matchMethod = 'NAME';
-              // Find imported contact by name to get its notes
-              importedMatch = importedByName.get(nameKey) || imported;
-            }
-          }
-          
-          console.log(`  🔍 Match result for "${imported.firstName} ${imported.lastName}":`, {
-            found: !!existing,
-            method: matchMethod,
-            existingId: existing?.id,
-            importedId: imported.id,
-            idsMatch: existing?.id === imported.id,
-            importedMatchHasNotes: importedMatch?.notes && importedMatch.notes.trim().length > 0
-          });
-          
-          // Check if imported contact has notes - be very explicit
-          const hasImportedNotes = imported.notes !== undefined && 
-                                    imported.notes !== null && 
-                                    typeof imported.notes === 'string' && 
-                                    imported.notes.trim().length > 0;
-          const importedNotesValue = imported.notes || 'NONE/NULL/UNDEFINED';
-          
-          console.log(`  📋 Checking "${imported.firstName} ${imported.lastName}":`, {
-            hasNotesProperty: 'notes' in imported,
-            notesValue: importedNotesValue,
-            notesType: typeof imported.notes,
-            notesLength: imported.notes?.length || 0,
-            hasImportedNotes,
-            foundExisting: !!existing,
-            existingId: existing?.id,
-            existingHasNotes: existing?.notes && existing.notes.trim()
-          });
-          
-          // If imported has notes, log it prominently
-          if (hasImportedNotes) {
-            console.log(`  🎯 IMPORTANT: "${imported.firstName} ${imported.lastName}" HAS NOTES: "${imported.notes!.substring(0, 80)}..."`);
-          }
-
-          if (existing) {
-            // STEP 1: Build base contact object with ALL fields
-            // Use importedMatch instead of imported to get the correct notes
-            const contactToUpdate: Partial<Contact> = {
-              id: existing.id, // Always preserve existing ID
-              firstName: importedMatch.firstName || existing.firstName || '',
-              lastName: importedMatch.lastName || existing.lastName || '',
-              emailAddress: importedMatch.emailAddress ?? existing.emailAddress ?? '',
-              phoneNumber: importedMatch.phoneNumber ?? existing.phoneNumber ?? '',
-              linkedInProfile: importedMatch.linkedInProfile ?? existing.linkedInProfile ?? '',
-              dateAdded: importedMatch.dateAdded || existing.dateAdded || '',
-              dateEdited: importedMatch.dateEdited ?? existing.dateEdited ?? '',
-              source: importedMatch.source || existing.source || 'Uploaded',
-            };
-            
-            // STEP 2: Handle notes - Use importedMatch which has the correct notes
-            // Priority: importedMatch.notes > existing.notes > undefined
-            if (importedMatch.notes !== undefined && importedMatch.notes !== null) {
-              // Imported has notes (even if empty string) - use it
-              contactToUpdate.notes = importedMatch.notes;
-              if (importedMatch.notes.trim().length > 0) {
-                notesUpdatedCount++;
-                console.log(`  ✅ [${notesUpdatedCount}] "${importedMatch.firstName} ${importedMatch.lastName}" - Notes: "${importedMatch.notes.substring(0, 50)}..."`);
-              }
-            } else if (existing.notes) {
-              // Imported has no notes, keep existing
-              contactToUpdate.notes = existing.notes;
-            }
-            // If neither has notes, contactToUpdate.notes stays undefined (this is OK)
-            
-            // STEP 3: VERIFY notes are in the object BEFORE pushing
-            const finalHasNotes = contactToUpdate.notes !== undefined;
-            const finalNotesValue = contactToUpdate.notes || '';
-            const finalNotesLength = finalNotesValue.length;
-            
-            console.log(`  🔍 VERIFICATION for "${imported.firstName} ${imported.lastName}":`, {
-              importedHasNotes: imported.notes !== undefined && imported.notes !== null && imported.notes.trim().length > 0,
-              importedNotesPreview: imported.notes ? `"${imported.notes.substring(0, 40)}..."` : 'none',
-              contactToUpdateHasNotes: finalHasNotes,
-              contactToUpdateNotesPreview: finalHasNotes ? `"${finalNotesValue.substring(0, 40)}..."` : 'UNDEFINED',
-              allKeys: Object.keys(contactToUpdate),
-              jsonString: JSON.stringify(contactToUpdate).substring(0, 200)
-            });
-            
-            // STEP 4: EMERGENCY CHECK - if importedMatch had notes but contactToUpdate doesn't, FORCE ADD
-            const importedHasRealNotes = importedMatch.notes && importedMatch.notes.trim().length > 0;
-            if (importedHasRealNotes && (!contactToUpdate.notes || !contactToUpdate.notes.trim())) {
-              console.error(`  ❌❌❌ EMERGENCY: ImportedMatch had notes but contactToUpdate missing!`);
-              console.error(`    ImportedMatch: "${importedMatch.notes}"`);
-              console.error(`    Before force - contactToUpdate keys:`, Object.keys(contactToUpdate));
-              contactToUpdate.notes = importedMatch.notes; // Force add
-              console.error(`  🔧🔧🔧 FORCE ADDED: "${contactToUpdate.notes}"`);
-              if (notesUpdatedCount === 0 || !contactsToUpdate.find(u => u.id === existing.id)) {
-                notesUpdatedCount++; // Only count if not already counted
-              }
-            }
-            
-            // STEP 5: FINAL CHECK before pushing - ensure notes are present
-            if (importedHasRealNotes && (!contactToUpdate.notes || !contactToUpdate.notes.trim())) {
-              console.error(`  ❌❌❌ STILL MISSING NOTES AFTER FORCE ADD!`);
-              console.error(`    contactToUpdate:`, JSON.stringify(contactToUpdate, null, 2));
-              // Last resort: create new object with notes explicitly
-              contactsToUpdate.push({
-                id: existing.id,
-                contact: { ...contactToUpdate, notes: importedMatch.notes! },
-              });
-            } else {
-              // Final verification: ensure notes field is explicitly set if importedMatch had it
-              const finalContactToUpdate = importedMatch.notes !== undefined 
-                ? { ...contactToUpdate, notes: importedMatch.notes }
-                : contactToUpdate;
-              
-              contactsToUpdate.push({
-                id: existing.id,
-                contact: finalContactToUpdate,
-              });
-            }
-          } else {
-            // Add as new contact - preserve all fields including notes
-            const newContact: Contact = {
-              id: imported.id || `contact-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              firstName: imported.firstName || '',
-              lastName: imported.lastName || '',
-              emailAddress: imported.emailAddress,
-              phoneNumber: imported.phoneNumber,
-              linkedInProfile: imported.linkedInProfile,
-              dateAdded: imported.dateAdded,
-              dateEdited: imported.dateEdited,
-              source: imported.source,
-              notes: imported.notes, // Explicitly preserve notes field
-            };
-            
-            contactsToAdd.push(newContact);
-            
-            if (newContact.notes && newContact.notes.trim()) {
-              notesAddedCount++;
-              console.log(`  + Adding "${newContact.firstName} ${newContact.lastName}" with notes (${newContact.notes.length} chars)`);
-              console.log(`    Notes preview: "${newContact.notes.substring(0, 80)}..."`);
-            } else {
-              console.log(`  + Adding "${newContact.firstName} ${newContact.lastName}" (no notes)`);
-            }
-          }
-        });
-
-        console.log(`  Summary: ${contactsToUpdate.length} to update (${notesUpdatedCount} with notes), ${contactsToAdd.length} to add (${notesAddedCount} with notes)`);
-
-        // Log all updates with notes before applying
-        console.log(`\n🔄 PRE-UPDATE VERIFICATION:`);
-        contactsToUpdate.forEach(({ id, contact }) => {
-          console.log(`  Contact ${id}:`, {
-            hasNotes: !!contact.notes,
-            notesValue: contact.notes || 'MISSING',
-            notesLength: contact.notes?.length || 0,
-            allFields: Object.keys(contact)
-          });
-          if (contact.notes) {
-            console.log(`    ✅ Has notes: "${contact.notes.substring(0, 60)}..."`);
-          } else {
-            console.log(`    ❌ MISSING NOTES!`);
-          }
-        });
-        console.log(`\n`);
-
-        // Batch all updates into a single state update to avoid race conditions
-        console.log(`\n🔄 BATCH UPDATING CONTACTS (${contactsToUpdate.length} to update, ${contactsToAdd.length} to add):`);
-        
-        // Create update map for faster lookup
-        const updateMap = new Map<string, Partial<Contact>>();
-        contactsToUpdate.forEach(({ id, contact }) => {
-          console.log(`  Will update ${id}:`, {
-            hasNotes: !!contact.notes,
-            notesValue: contact.notes ? `"${contact.notes.substring(0, 50)}..."` : 'MISSING'
-          });
-          updateMap.set(id, contact);
-        });
-        
-        // Apply all updates at once using batch update function
-        // This ensures all updates happen in a single state change and notes are preserved
-        if (contactsToUpdate.length > 0) {
-          // Count contacts with notes in the batch
-          const batchWithNotes = contactsToUpdate.filter(u => u.contact.notes && u.contact.notes.trim());
-          
-          // ALERT: Show batch update status - use window.alert and show detailed info
-          const firstFewWithNotes = contactsToUpdate
-            .filter(u => u.contact.notes && u.contact.notes.trim())
-            .slice(0, 3)
-            .map(u => `${u.contact.firstName} ${u.contact.lastName}: "${u.contact.notes.substring(0, 30)}..."`)
-            .join('\n');
-          
-          window.alert(
-            `🔄 BATCH UPDATE\n` +
-            `Updating ${contactsToUpdate.length} contacts\n` +
-            `${batchWithNotes.length} contacts have notes\n\n` +
-            `First few with notes:\n${firstFewWithNotes || 'None found'}\n\n` +
-            `Click OK to execute batch update...`
-          );
-          
-          // CRITICAL: Verify and FORCE-FIX EVERY contact object to have notes if imported had notes
-          let verifiedCount = 0;
-          let fixedCount = 0;
-          
-          // Create a NEW array with fixed contact objects (don't mutate original)
-          const fixedContactsToUpdate = contactsToUpdate.map(({ id, contact }) => {
-            // Find the correct imported contact that matches
-            const importedMatch = importedContacts.find(ic => {
-              // Match by ID first (most reliable)
-              if (ic.id === id) return true;
-              // Then by email
-              if (ic.emailAddress && contact.emailAddress && 
-                  ic.emailAddress.toLowerCase() === contact.emailAddress.toLowerCase()) return true;
-              // Then by name
-              if (ic.firstName === contact.firstName && ic.lastName === contact.lastName) return true;
-              return false;
-            });
-            
-            if (importedMatch && importedMatch.notes && importedMatch.notes.trim()) {
-              // Imported has notes - ensure contact has it
-              if (!contact.notes || !contact.notes.trim()) {
-                console.error(`❌ VERIFICATION FAILED: ${contact.firstName} ${contact.lastName} should have notes but doesn't!`);
-                console.error(`  Imported notes: "${importedMatch.notes}"`);
-                console.error(`  contact keys before fix:`, Object.keys(contact));
-                
-                // Create a NEW contact object with notes explicitly included
-                const fixedContact = {
-                  ...contact,
-                  notes: importedMatch.notes // Explicitly add notes
-                };
-                
-                console.error(`  🔧 FORCE ADDED notes to contact object`);
-                console.error(`  Fixed contact keys:`, Object.keys(fixedContact));
-                console.error(`  Fixed contact has notes:`, !!fixedContact.notes);
-                fixedCount++;
-                
-                return { id, contact: fixedContact };
-              } else {
-                verifiedCount++;
-                // Even if notes exist, ensure they're explicitly in the object
-                return { id, contact: { ...contact, notes: contact.notes } };
-              }
-            }
-            // No notes to add, return as-is
-            return { id, contact };
-          });
-          
-          console.log(`✅ Verified ${verifiedCount} contacts already have notes, fixed ${fixedCount} contacts`);
-          
-          // Use the fixed array for batch update
-          contactsToUpdate = fixedContactsToUpdate;
-          
-          // Log first few contacts to verify notes are in the objects
-          console.log(`\n🔄 Using batch update for ${contactsToUpdate.length} contacts`);
-          console.log(`📋 Contacts with notes in batch: ${batchWithNotes.length}`);
-          
-          // Sample a few contacts to show their structure
-          const sampleWithNotes = contactsToUpdate.filter(u => u.contact.notes && u.contact.notes.trim()).slice(0, 3);
-          if (sampleWithNotes.length > 0) {
-            console.log(`📋 Sample contacts WITH notes:`, sampleWithNotes.map(u => ({
-              id: u.id,
-              name: `${u.contact.firstName} ${u.contact.lastName}`,
-              notes: u.contact.notes.substring(0, 50),
-              hasNotesKey: 'notes' in u.contact,
-              allKeys: Object.keys(u.contact)
-            })));
-          } else {
-            console.error(`❌ NO CONTACTS WITH NOTES IN BATCH!`);
-          }
-          
-          // Also check a few that should have notes based on imported data
-          const shouldHaveNotes = contactsToUpdate.filter(u => {
-            const importedMatch = importedContacts.find(ic => 
-              (ic.id === u.id) ||
-              (ic.emailAddress && u.contact.emailAddress && ic.emailAddress.toLowerCase() === u.contact.emailAddress.toLowerCase()) ||
-              (ic.firstName === u.contact.firstName && ic.lastName === u.contact.lastName)
-            );
-            return importedMatch && importedMatch.notes && importedMatch.notes.trim();
-          });
-          
-          console.log(`📋 Contacts that SHOULD have notes (based on imported data): ${shouldHaveNotes.length}`);
-          const missingNotes = shouldHaveNotes.filter(u => !u.contact.notes || !u.contact.notes.trim());
-          if (missingNotes.length > 0) {
-            console.error(`❌❌❌ ${missingNotes.length} contacts SHOULD have notes but are missing them!`);
-            missingNotes.slice(0, 5).forEach(u => {
-              const importedMatch = importedContacts.find(ic => 
-                (ic.id === u.id) ||
-                (ic.emailAddress && u.contact.emailAddress && ic.emailAddress.toLowerCase() === u.contact.emailAddress.toLowerCase()) ||
-                (ic.firstName === u.contact.firstName && ic.lastName === u.contact.lastName)
-              );
-              console.error(`  - ${u.contact.firstName} ${u.contact.lastName}:`);
-              console.error(`    Imported notes: "${importedMatch?.notes}"`);
-              console.error(`    contactToUpdate has notes: ${!!u.contact.notes}`);
-              console.error(`    contactToUpdate keys:`, Object.keys(u.contact));
-              // LAST RESORT: Force add it directly to the object
-              u.contact.notes = importedMatch!.notes;
-              console.error(`    🔧🔧🔧 FORCE ADDED notes to contact object`);
-            });
-          }
-          
-          // Final verification before calling batch update
-          const finalWithNotes = contactsToUpdate.filter(u => u.contact.notes && u.contact.notes.trim()).length;
-          console.log(`📋 FINAL COUNT: ${finalWithNotes} contacts have notes before batch update call`);
-          
-          if (finalWithNotes === 0 && importedWithNotes.length > 0) {
-            window.alert(`⚠️ WARNING: ${importedWithNotes.length} contacts in file have notes, but 0 in batch update objects!\nThis indicates a bug in the contact matching or notes assignment logic.`);
-          }
-          
-          // FINAL CHECK: Log the actual objects being passed to batch update
-          console.error(`\n🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨`);
-          console.error(`FINAL CHECK BEFORE BATCH UPDATE`);
-          console.error(`🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨`);
-          const withNotes = contactsToUpdate.filter(u => u.contact.notes && u.contact.notes.trim());
-          console.error(`  Total contacts to update: ${contactsToUpdate.length}`);
-          console.error(`  Contacts WITH notes in batch: ${withNotes.length}`);
-          if (withNotes.length > 0) {
-            console.log(`  First 3 contacts WITH notes:`, withNotes.slice(0, 3).map(u => ({
-              id: u.id,
-              name: `${u.contact.firstName} ${u.contact.lastName}`,
-              notes: u.contact.notes.substring(0, 50),
-              hasNotesKey: 'notes' in u.contact,
-              allKeys: Object.keys(u.contact)
-            })));
-          } else {
-            console.error(`  ❌❌❌ NO CONTACTS WITH NOTES IN BATCH!`);
-            console.error(`  This means notes were lost before batch update call!`);
-          }
-          console.error(`🚨🚨🚨 CALLING updateMultipleContacts NOW 🚨🚨🚨`);
-          console.error(`This should NOT be filtered - using console.error`);
-          
-          // ALERT to confirm batch update is being called (can't be filtered)
-          const notesCount = contactsToUpdate.filter(u => u.contact.notes && u.contact.notes.trim()).length;
-          window.alert(
-            `🚨 BATCH UPDATE CALL\n` +
-            `About to call updateMultipleContacts with:\n` +
-            `- ${contactsToUpdate.length} total contacts\n` +
-            `- ${notesCount} contacts with notes\n\n` +
-            `Click OK to execute batch update...`
-          );
-          
-          // CRITICAL: Before calling batch update, verify notes are in the objects
-          const finalVerification = contactsToUpdate.filter(u => {
-            const hasNotes = u.contact.notes && typeof u.contact.notes === 'string' && u.contact.notes.trim().length > 0;
-            if (!hasNotes) {
-              // Check if this contact should have notes from imported data
-              const importedMatch = importedContacts.find(ic => 
-                (ic.id === u.id) ||
-                (ic.emailAddress && u.contact.emailAddress && ic.emailAddress.toLowerCase() === u.contact.emailAddress.toLowerCase()) ||
-                (ic.firstName === u.contact.firstName && ic.lastName === u.contact.lastName)
-              );
-              if (importedMatch && importedMatch.notes && importedMatch.notes.trim()) {
-                console.error(`⚠️ Contact "${u.contact.firstName} ${u.contact.lastName}" should have notes but doesn't!`);
-                console.error(`  Imported notes: "${importedMatch.notes}"`);
-                console.error(`  contactToUpdate keys:`, Object.keys(u.contact));
-                // FORCE ADD IT
-                u.contact.notes = importedMatch.notes;
-                console.error(`  🔧 FORCE ADDED notes to contactToUpdate`);
-              }
-            }
-            return hasNotes;
-          });
-          
-          console.error(`📋 FINAL VERIFICATION: ${finalVerification.length} contacts have notes before batch update`);
-          
-          // Actually call the batch update function
-          try {
-            updateMultipleContacts(contactsToUpdate);
-            console.error(`✅✅✅ updateMultipleContacts CALLED SUCCESSFULLY`);
-            
-            // Alert after batch update call
-            window.alert(
-              `✅ Batch update executed!\n\n` +
-              `- Function was called\n` +
-              `- Check console for batch update logs\n\n` +
-              `After closing this, click "🔍 Check Data" to verify notes were saved.`
-            );
-          } catch (error) {
-            console.error(`❌❌❌ ERROR calling updateMultipleContacts:`, error);
-            window.alert(`❌ ERROR: Failed to execute batch update!\n\n${error}`);
-          }
-        }
-        
-        // Add new contacts
-        if (contactsToAdd.length > 0) {
-          console.log(`\n🔄 Adding ${contactsToAdd.length} new contacts`);
-          addContacts(contactsToAdd);
-        }
-        
-        // Force a save check after a delay
-        setTimeout(() => {
-          try {
-            const userJson = localStorage.getItem('contactChronicle_user');
-            if (userJson) {
-              const user = JSON.parse(userJson);
-              const contactsKey = `contactChronicle_contacts_${user.id}`;
-              const saved = localStorage.getItem(contactsKey);
-              if (saved) {
-                const savedContacts: Contact[] = JSON.parse(saved);
-                const savedWithNotes = savedContacts.filter(c => c.notes && c.notes.trim());
-                console.log(`  🔍 POST-UPDATE CHECK: ${savedContacts.length} contacts in localStorage, ${savedWithNotes.length} with notes`);
-              }
-            }
-          } catch (error) {
-            console.error('Error checking saved contacts:', error);
-          }
-        }, 500);
-        
-        // Verify notes after import - read from localStorage directly
-        setTimeout(() => {
-          try {
-            // Get user from localStorage since we can't use hooks in setTimeout
-            const userJson = localStorage.getItem('contactChronicle_user');
-            if (userJson) {
-              const user = JSON.parse(userJson);
-              const contactsKey = `contactChronicle_contacts_${user.id}`;
-              const savedContactsJson = localStorage.getItem(contactsKey);
-              if (savedContactsJson) {
-                const savedContacts: Contact[] = JSON.parse(savedContactsJson);
-                console.log('🔍 ===== POST-IMPORT VERIFICATION =====');
-                console.log(`  Total contacts in localStorage: ${savedContacts.length}`);
-                const contactsWithNotesAfter = savedContacts.filter(c => c.notes && c.notes.trim());
-                console.log(`  Contacts with notes in localStorage: ${contactsWithNotesAfter.length}`);
-                
-                if (contactsWithNotesAfter.length > 0) {
-                  console.log('  ✅ Contacts with notes after import:');
-                  contactsWithNotesAfter.slice(0, 10).forEach((c, idx) => {
-                    console.log(`    [${idx + 1}] ${c.firstName} ${c.lastName}: "${c.notes?.substring(0, 100)}${c.notes && c.notes.length > 100 ? '...' : ''}"`);
-                  });
-                } else {
-                  console.error('  ❌ ERROR: No contacts with notes found in localStorage after import!');
-                  // Sample a few contacts to see if notes field exists
-                  console.log('  Sample contacts (first 5) to debug:');
-                  savedContacts.slice(0, 5).forEach(c => {
-                    const hasNotesField = 'notes' in c;
-                    const notesValue = c.notes;
-                    console.log(`    - ${c.firstName} ${c.lastName}:`, {
-                      id: c.id,
-                      hasNotesField,
-                      notesValue: notesValue || 'undefined/null/empty',
-                      notesLength: notesValue?.length || 0,
-                      fullContact: c // Show full contact object
-                    });
-                  });
-                  
-                  // Also check if any contact has notes field at all (even empty)
-                  const contactsWithNotesField = savedContacts.filter(c => 'notes' in c);
-                  console.log(`  Contacts with 'notes' field (even if empty): ${contactsWithNotesField.length}`);
-                  
-                  // Check raw JSON to see if notes are there
-                  console.log('  Raw JSON sample (first contact):', JSON.stringify(savedContacts[0], null, 2));
-                }
-                console.log('🔍 =====================================');
-              }
-            }
-          } catch (error) {
-            console.error('Error reading from localStorage for verification:', error);
-          }
-        }, 2000);
-
-        // Add new contacts in one batch
-        if (contactsToAdd.length > 0) {
-          addContacts(contactsToAdd);
-        }
-
-        const totalUpdated = contactsToUpdate.length;
-        const totalAdded = contactsToAdd.length;
-        const totalWithNotes = notesUpdatedCount + notesAddedCount;
-
-        // CRITICAL: Verify notes were actually saved by checking localStorage directly
-        setTimeout(() => {
-          try {
-            const userJson = localStorage.getItem('contactChronicle_user');
-            if (userJson) {
-              const user = JSON.parse(userJson);
-              const contactsKey = `contactChronicle_contacts_${user.id}`;
-              const savedContactsJson = localStorage.getItem(contactsKey);
-              if (savedContactsJson) {
-                const savedContacts: Contact[] = JSON.parse(savedContactsJson);
-                const savedWithNotes = savedContacts.filter(c => c.notes && c.notes.trim());
-                console.log(`🔍 FINAL VERIFICATION:`, {
-                  totalSaved: savedContacts.length,
-                  withNotes: savedWithNotes.length,
-                  sampleWithNotes: savedWithNotes.slice(0, 3).map(c => ({
-                    name: `${c.firstName} ${c.lastName}`,
-                    notes: c.notes?.substring(0, 50)
-                  }))
-                });
-                
-                // ALERT with final verification (can't be filtered)
-                alert(
-                  `Import complete!\n` +
-                  `- Updated: ${totalUpdated} (${notesUpdatedCount} with notes)\n` +
-                  `- Added: ${totalAdded} (${notesAddedCount} with notes)\n` +
-                  `- Total in file: ${importedContacts.length}\n` +
-                  `- Notes in batch: ${totalWithNotes}\n` +
-                  `\n🔍 FINAL VERIFICATION:\n` +
-                  `- Contacts in localStorage: ${savedContacts.length}\n` +
-                  `- Contacts with notes in localStorage: ${savedWithNotes.length}\n` +
-                  `${savedWithNotes.length === 0 ? '\n❌ ERROR: Notes were NOT saved!' : '\n✅ Notes were saved successfully!'}`
-                );
-              }
-            }
-          } catch (error) {
-            console.error('Error in final verification:', error);
-          }
-        }, 1000);
-
-        alert(
-          `Import complete!\n` +
-          `- Updated: ${totalUpdated} existing contact(s) (${notesUpdatedCount} with notes)\n` +
-          `- Added: ${totalAdded} new contact(s) (${notesAddedCount} with notes)\n` +
-          `- Total in file: ${importedContacts.length}\n` +
-          `- Contacts with notes: ${totalWithNotes}`
-        );
-
-        // Reset file input
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-      } catch (error) {
-        console.error('Error importing contacts:', error);
-        alert('Error importing contacts. Please check the file format.');
+      // Parse JSON
+      const importedContacts: Contact[] = JSON.parse(fileContent);
+      
+      if (!Array.isArray(importedContacts)) {
+        alert('❌ Invalid file format. Expected an array of contacts.');
+        return;
       }
-    };
-    reader.readAsText(file);
+
+      // Count contacts with notes in imported file
+      const importedWithNotes = importedContacts.filter(c => 
+        c.notes && typeof c.notes === 'string' && c.notes.trim().length > 0
+      );
+
+      alert(
+        `📤 FILE PARSED\n` +
+        `Total contacts: ${importedContacts.length}\n` +
+        `Contacts with notes: ${importedWithNotes.length}\n\n` +
+        `Click OK to continue import...`
+      );
+
+      // SIMPLIFIED MATCHING: Build update array directly
+      const updates: Array<{ id: string; contact: Partial<Contact> }> = [];
+      const newContacts: Contact[] = [];
+
+      for (const imported of importedContacts) {
+        // Skip placeholder contacts
+        if (imported.firstName === 'First Name' && imported.lastName === 'Last Name') {
+          continue;
+        }
+
+        // Find existing contact by ID, email, or name
+        let existing: Contact | undefined;
+        
+        // Try ID first
+        if (imported.id) {
+          existing = contacts.find(c => c.id === imported.id);
+        }
+        
+        // Try email if ID didn't match
+        if (!existing && imported.emailAddress) {
+          existing = contacts.find(c => 
+            c.emailAddress && 
+            c.emailAddress.toLowerCase() === imported.emailAddress.toLowerCase()
+          );
+        }
+        
+        // Try name if email didn't match
+        if (!existing) {
+          const importedNameKey = `${imported.firstName?.toLowerCase()}_${imported.lastName?.toLowerCase()}`;
+          existing = contacts.find(c => {
+            const existingNameKey = `${c.firstName?.toLowerCase()}_${c.lastName?.toLowerCase()}`;
+            return existingNameKey === importedNameKey && existingNameKey !== 'first name_last name';
+          });
+        }
+
+        if (existing) {
+          // Build update object - EXPLICITLY include notes if imported has it
+          const update: Partial<Contact> = {};
+          
+          // Copy all fields from imported, preserving existing values where imported is empty
+          update.firstName = imported.firstName || existing.firstName || '';
+          update.lastName = imported.lastName || existing.lastName || '';
+          update.emailAddress = imported.emailAddress || existing.emailAddress || '';
+          update.phoneNumber = imported.phoneNumber || existing.phoneNumber || '';
+          update.linkedInProfile = imported.linkedInProfile || existing.linkedInProfile || '';
+          update.dateAdded = imported.dateAdded || existing.dateAdded || '';
+          update.dateEdited = imported.dateEdited || existing.dateEdited || '';
+          update.source = imported.source || existing.source || 'Uploaded';
+          
+          // CRITICAL: Explicitly handle notes - if imported has notes, use them
+          if (imported.notes !== undefined && imported.notes !== null) {
+            update.notes = imported.notes; // Use imported notes (even if empty string)
+          } else if (existing.notes) {
+            update.notes = existing.notes; // Preserve existing notes if imported has none
+          }
+          // If neither has notes, update.notes stays undefined (will be ignored)
+
+          updates.push({ id: existing.id, contact: update });
+        } else {
+          // New contact - include all fields including notes
+          const newContact: Contact = {
+            id: imported.id || `contact-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            firstName: imported.firstName || '',
+            lastName: imported.lastName || '',
+            emailAddress: imported.emailAddress || '',
+            phoneNumber: imported.phoneNumber || '',
+            linkedInProfile: imported.linkedInProfile || '',
+            dateAdded: imported.dateAdded || '',
+            dateEdited: imported.dateEdited || '',
+            source: imported.source || 'Uploaded',
+            notes: imported.notes || '', // Explicitly include notes (may be empty string)
+          };
+          newContacts.push(newContact);
+        }
+      }
+
+      // Count updates with notes
+      const updatesWithNotes = updates.filter(u => 
+        u.contact.notes && typeof u.contact.notes === 'string' && u.contact.notes.trim().length > 0
+      );
+
+      alert(
+        `🔄 IMPORT READY\n` +
+        `- Updates: ${updates.length} (${updatesWithNotes.length} with notes)\n` +
+        `- New contacts: ${newContacts.length}\n\n` +
+        `Click OK to apply changes...`
+      );
+
+      // Apply updates using batch update
+      if (updates.length > 0) {
+        // VERIFY notes are in the update objects before calling batch update
+        const verifiedUpdates = updates.map(({ id, contact }) => {
+          // Double-check: if imported had notes, ensure they're in the update
+          const importedMatch = importedContacts.find(ic => {
+            const existing = contacts.find(c => c.id === id);
+            if (!existing) return false;
+            return (
+              (ic.id === id) ||
+              (ic.emailAddress && existing.emailAddress && ic.emailAddress.toLowerCase() === existing.emailAddress.toLowerCase()) ||
+              (ic.firstName === existing.firstName && ic.lastName === existing.lastName)
+            );
+          });
+          
+          // If imported had notes but update doesn't, force add it
+          if (importedMatch?.notes && importedMatch.notes.trim() && (!contact.notes || !contact.notes.trim())) {
+            contact = { ...contact, notes: importedMatch.notes };
+          }
+          
+          return { id, contact };
+        });
+
+        console.error(`🚨🚨🚨 CALLING BATCH UPDATE WITH ${verifiedUpdates.length} UPDATES 🚨🚨🚨`);
+        console.error(`Updates with notes: ${verifiedUpdates.filter(u => u.contact.notes && u.contact.notes.trim()).length}`);
+        
+        updateMultipleContacts(verifiedUpdates);
+      }
+
+      // Add new contacts
+      if (newContacts.length > 0) {
+        addContacts(newContacts);
+      }
+
+      // Final verification after a delay
+      setTimeout(() => {
+        const contactsKey = `contactChronicle_contacts_${JSON.parse(localStorage.getItem('contactChronicle_user') || '{}').id}`;
+        if (contactsKey.includes('contactChronicle_contacts_')) {
+          const saved = JSON.parse(localStorage.getItem(contactsKey) || '[]');
+          const savedWithNotes = saved.filter((c: Contact) => c.notes && c.notes.trim());
+          
+          alert(
+            `✅ IMPORT COMPLETE\n\n` +
+            `Total contacts: ${saved.length}\n` +
+            `Contacts with notes: ${savedWithNotes.length}\n\n` +
+            `${savedWithNotes.length === 0 ? '❌ WARNING: No notes were saved!' : '✅ Notes were saved successfully!'}`
+          );
+        }
+      }, 1000);
+
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error) {
+      console.error('Error importing contacts:', error);
+      alert(`❌ Error importing contacts: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
-  // Process contacts by quarter
-  const contactsByQuarter = useMemo(() => {
-    const quarterMap = new Map<string, number>();
-    
-    contacts.forEach((contact) => {
-      // If no dateAdded, use current date
-      let dateAdded = contact.dateAdded;
-      if (!dateAdded || dateAdded.trim() === '') {
-        const now = new Date();
-        dateAdded = `${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
-      }
-      
-      if (dateAdded) {
-        // Try to parse date in various formats
-        let date: Date | null = null;
-        
-        // Try MM/YYYY format (most common)
-        if (dateAdded.includes('/')) {
-          const parts = dateAdded.split('/');
-          if (parts.length === 2) {
-            const month = parseInt(parts[0]);
-            const year = parseInt(parts[1]);
-            if (month >= 1 && month <= 12 && year > 2000) {
-              date = new Date(year, month - 1);
-            }
-          }
-        }
-        
-        // Try YYYY-MM-DD format
-        if (!date && dateAdded.includes('-')) {
-          date = new Date(dateAdded);
-        }
-        
-        // Try full date string
-        if (!date || isNaN(date.getTime())) {
-          date = new Date(dateAdded);
-        }
-        
-        if (date && !isNaN(date.getTime()) && date.getFullYear() > 2000) {
-          const year = date.getFullYear();
-          const month = date.getMonth() + 1; // 1-12
-          const quarter = Math.ceil(month / 3); // 1-4
-          const quarterKey = `Q${quarter} ${year}`;
-          quarterMap.set(quarterKey, (quarterMap.get(quarterKey) || 0) + 1);
-        }
-      }
-    });
-    
-    // Generate last 20 quarters (5 years)
-    const quarters: { quarter: string; count: number }[] = [];
-    const now = new Date();
-    
-    for (let i = 19; i >= 0; i--) {
-      const date = new Date(now.getFullYear(), now.getMonth() - (i * 3), 1);
-      const year = date.getFullYear();
-      const month = date.getMonth() + 1;
-      const quarter = Math.ceil(month / 3);
-      const quarterKey = `Q${quarter} ${year}`;
-      
-      // Only add if not already added (avoid duplicates when generating quarters)
-      if (!quarters.find(q => q.quarter === quarterKey)) {
-        quarters.push({
-          quarter: quarterKey,
-          count: quarterMap.get(quarterKey) || 0,
-        });
-      }
-    }
-    
-    // Fill in any missing quarters in the sequence
-    const filledQuarters: { quarter: string; count: number }[] = [];
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
-    const currentQuarter = Math.ceil(currentMonth / 3);
-    
-    for (let year = currentYear - 4; year <= currentYear; year++) {
-      const startQ = year === currentYear - 4 ? 1 : 1;
-      const endQ = year === currentYear ? currentQuarter : 4;
-      
-      for (let q = startQ; q <= endQ; q++) {
-        const quarterKey = `Q${q} ${year}`;
-        const existing = quarters.find(item => item.quarter === quarterKey);
-        filledQuarters.push({
-          quarter: quarterKey,
-          count: existing ? existing.count : 0,
-        });
-      }
-    }
-    
-    return filledQuarters;
-  }, [contacts]);
-
-  // Calculate statistics
-  const stats = useMemo(() => {
-    const totalContacts = contacts.length;
-    const avgPerQuarter = contactsByQuarter.reduce((sum, q) => sum + q.count, 0) / Math.max(contactsByQuarter.length, 1);
-    
-    let peakQuarter = { quarter: 'N/A', count: 0 };
-    contactsByQuarter.forEach((q) => {
-      if (q.count > peakQuarter.count) {
-        peakQuarter = { quarter: q.quarter, count: q.count };
-      }
-    });
-    
-    const counts = contactsByQuarter.map((q) => q.count).sort((a, b) => a - b);
-    const median = counts.length > 0 
-      ? counts[Math.floor(counts.length / 2)] 
-      : 0;
-    const highActivityQuarters = contactsByQuarter.filter((q) => q.count >= median).length;
-    const highActivityPercentage = contactsByQuarter.length > 0
-      ? Math.round((highActivityQuarters / contactsByQuarter.length) * 100)
-      : 0;
-
-    return {
-      totalContacts,
-      avgPerMonth: (avgPerQuarter / 3).toFixed(1), // Convert quarterly avg to monthly for display
-      peakMonth: peakQuarter.quarter,
-      peakCount: peakQuarter.count,
-      highActivityPercentage,
-    };
-  }, [contacts, contactsByQuarter]);
-
-  // Filter contacts
+  // Filter and sort contacts
   const filteredContacts = useMemo(() => {
-    return contacts.filter((contact) => {
-      const matchesSearch = 
-        searchTerm === '' ||
-        contact.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contact.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    let filtered = contacts.filter(contact => {
+      const matchesSearch = !searchTerm || 
+        `${contact.firstName} ${contact.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
         contact.emailAddress?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contact.phoneNumber?.includes(searchTerm);
+        contact.notes?.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesSource = selectedSource === 'all' || contact.source === selectedSource;
       
       return matchesSearch && matchesSource;
     });
+
+    return filtered.sort((a, b) => {
+      const dateA = new Date(a.dateAdded || '');
+      const dateB = new Date(b.dateAdded || '');
+      return dateB.getTime() - dateA.getTime();
+    });
   }, [contacts, searchTerm, selectedSource]);
 
-  const sources = useMemo(() => {
-    const sourceSet = new Set(contacts.map((c) => c.source).filter(Boolean));
-    return Array.from(sourceSet);
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const totalContacts = contacts.length;
+    
+    if (totalContacts === 0) {
+      return {
+        total: 0,
+        avgPerMonth: 0,
+        peakMonth: null as { month: string; count: number } | null,
+        highActivityMonths: [] as Array<{ month: string; count: number }>
+      };
+    }
+
+    // Group by month/year
+    const byMonth = new Map<string, number>();
+    contacts.forEach(contact => {
+      if (contact.dateAdded) {
+        try {
+          const date = new Date(contact.dateAdded);
+          if (!isNaN(date.getTime())) {
+            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            byMonth.set(monthKey, (byMonth.get(monthKey) || 0) + 1);
+          }
+        } catch (e) {
+          // Invalid date, skip
+        }
+      }
+    });
+
+    const entries = Array.from(byMonth.entries()).map(([month, count]) => ({
+      month,
+      count
+    }));
+
+    const avgPerMonth = entries.length > 0 
+      ? entries.reduce((sum, e) => sum + e.count, 0) / entries.length 
+      : 0;
+
+    const peakMonth = entries.length > 0
+      ? entries.reduce((peak, curr) => curr.count > peak.count ? curr : peak, entries[0])
+      : null;
+
+    // High activity months (above average)
+    const highActivityMonths = entries
+      .filter(e => e.count > avgPerMonth)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    return {
+      total: totalContacts,
+      avgPerMonth: Math.round(avgPerMonth * 10) / 10,
+      peakMonth,
+      highActivityMonths
+    };
+  }, [contacts]);
+
+  // Quarterly chart data
+  const quarterlyData = useMemo(() => {
+    const now = new Date();
+    const quarters: { [key: string]: number } = {};
+    
+    // Initialize last 5 years (20 quarters)
+    for (let year = now.getFullYear() - 4; year <= now.getFullYear(); year++) {
+      for (let quarter = 1; quarter <= 4; quarter++) {
+        quarters[`${year}-Q${quarter}`] = 0;
+      }
+    }
+
+    contacts.forEach(contact => {
+      if (contact.dateAdded) {
+        try {
+          const date = new Date(contact.dateAdded);
+          if (!isNaN(date.getTime())) {
+            const year = date.getFullYear();
+            const month = date.getMonth() + 1;
+            const quarter = Math.ceil(month / 3);
+            const quarterKey = `${year}-Q${quarter}`;
+            
+            if (quarters.hasOwnProperty(quarterKey)) {
+              quarters[quarterKey]++;
+            }
+          }
+        } catch (e) {
+          // Invalid date, skip
+        }
+      }
+    });
+
+    return Object.entries(quarters)
+      .map(([quarter, count]) => ({
+        quarter: quarter.replace('-', ' '),
+        contacts: count
+      }))
+      .filter(d => d.contacts > 0 || parseInt(d.quarter.split(' ')[0]) >= now.getFullYear() - 2);
   }, [contacts]);
 
   const handleEditContact = (contact: Contact) => {
@@ -942,459 +373,290 @@ export default function ChroniclePage() {
     }
   };
 
+  const handleCancelEdit = () => {
+    setEditingContact(null);
+    setNotes('');
+  };
+
+  // Diagnostic function to check localStorage
+  const handleCheckData = () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('contactChronicle_user') || '{}');
+      const contactsKey = `contactChronicle_contacts_${user.id}`;
+      const saved = JSON.parse(localStorage.getItem(contactsKey) || '[]');
+      const savedWithNotes = saved.filter((c: Contact) => c.notes && typeof c.notes === 'string' && c.notes.trim().length > 0);
+      
+      const sampleWithNotes = savedWithNotes.slice(0, 5).map((c: Contact) => 
+        `${c.firstName} ${c.lastName}: "${c.notes?.substring(0, 50)}..."`
+      ).join('\n');
+      
+      alert(
+        `🔍 DATA DIAGNOSTIC\n\n` +
+        `Total contacts: ${saved.length}\n` +
+        `Contacts with notes: ${savedWithNotes.length}\n\n` +
+        `${savedWithNotes.length > 0 ? 'Sample contacts with notes:\n' + sampleWithNotes : '❌ No contacts have notes!'}`
+      );
+      
+      console.log('🔍 LOCALSTORAGE DIAGNOSTIC:');
+      console.log(`  Total contacts: ${saved.length}`);
+      console.log(`  Contacts with notes: ${savedWithNotes.length}`);
+      console.log(`  Contacts with notes:`, savedWithNotes.map((c: Contact) => ({
+        name: `${c.firstName} ${c.lastName}`,
+        notes: c.notes
+      })));
+    } catch (error) {
+      console.error('Error checking data:', error);
+      alert('❌ Error checking data. See console for details.');
+    }
+  };
+
+  if (!isClient) {
+    return null;
+  }
+
   return (
     <ProtectedRoute>
       <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
         <Header />
-      <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-purple-800">View Chronicle</h1>
-          
-          {/* Export/Import Controls */}
-          <div className="flex flex-wrap gap-2 sm:gap-3">
-            <button
-              onClick={handleExportContacts}
-              className="px-4 py-2 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors whitespace-nowrap font-medium"
-              title="Export all contacts (with notes) to JSON file"
-            >
-              📥 Export Contacts
-            </button>
-            <label className="px-4 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors whitespace-nowrap font-medium cursor-pointer">
-              📤 Import Contacts
-              <input
-                type="file"
-                accept=".json"
-                onChange={handleImportContacts}
-                className="hidden"
-                ref={fileInputRef}
-              />
-            </label>
-            <button
-              onClick={() => {
-                try {
-                  // Diagnostic: Check current localStorage data
-                  const userJson = localStorage.getItem('contactChronicle_user');
-                  if (userJson) {
-                    const user = JSON.parse(userJson);
-                    const contactsKey = `contactChronicle_contacts_${user.id}`;
-                    const contactsJson = localStorage.getItem(contactsKey);
-                    if (contactsJson) {
-                      const contacts: Contact[] = JSON.parse(contactsJson);
-                      const withNotes = contacts.filter(c => c.notes && c.notes.trim());
-                      window.alert(
-                        `📊 CURRENT DATA STATUS\n` +
-                        `Total contacts: ${contacts.length}\n` +
-                        `Contacts with notes: ${withNotes.length}\n` +
-                        `\nSample contacts with notes:\n` +
-                        (withNotes.length > 0 
-                          ? withNotes.slice(0, 3).map(c => `- ${c.firstName} ${c.lastName}: "${c.notes?.substring(0, 40)}..."`).join('\n')
-                          : 'None found')
-                      );
-                    }
-                  }
-                } catch (error) {
-                  window.alert('Error checking data: ' + error);
-                }
-              }}
-              className="px-4 py-2 text-sm bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors whitespace-nowrap font-medium"
-              title="Check current data status"
-            >
-              🔍 Check Data
-            </button>
-            <button
-              onClick={async () => {
-                try {
-                  // TEST: Manually add notes to a contact to verify system works
-                  const testContact = contacts.find(c => c.firstName === 'Wesley' && c.lastName?.includes('Handy'));
-                  if (testContact) {
-                    window.alert(`🧪 TEST: Adding notes to "${testContact.firstName} ${testContact.lastName}"\nNotes: "Lives in Virginia Beach, VA"`);
-                    updateContact(testContact.id, { notes: 'Lives in Virginia Beach, VA' });
-                    setTimeout(() => {
-                      const userJson = localStorage.getItem('contactChronicle_user');
-                      if (userJson) {
-                        const user = JSON.parse(userJson);
-                        const contactsKey = `contactChronicle_contacts_${user.id}`;
-                        const saved = JSON.parse(localStorage.getItem(contactsKey) || '[]');
-                        const savedContact = saved.find((c: Contact) => c.id === testContact.id);
-                        window.alert(
-                          `🧪 TEST RESULT:\n` +
-                          `Contact: ${savedContact?.firstName} ${savedContact?.lastName}\n` +
-                          `Has notes: ${savedContact?.notes ? 'YES' : 'NO'}\n` +
-                          `Notes value: "${savedContact?.notes || 'MISSING'}"`
-                        );
-                      }
-                    }, 1000);
-                  } else {
-                    window.alert('Test contact not found');
-                  }
-                } catch (error) {
-                  window.alert('Test error: ' + error);
-                }
-              }}
-              className="px-4 py-2 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors whitespace-nowrap font-medium"
-              title="Test if notes can be saved manually"
-            >
-              🧪 Test Notes
-            </button>
-            <button
-              onClick={() => {
-                try {
-                  const userJson = localStorage.getItem('contactChronicle_user');
-                  if (userJson) {
-                    const user = JSON.parse(userJson);
-                    const contactsKey = `contactChronicle_contacts_${user.id}`;
-                    const savedContactsJson = localStorage.getItem(contactsKey);
-                    if (savedContactsJson) {
-                      const savedContacts: Contact[] = JSON.parse(savedContactsJson);
-                      const contactsWithNotes = savedContacts.filter(c => c.notes && c.notes.trim());
-                      console.log('🔍 LOCALSTORAGE DIAGNOSTIC:');
-                      console.log(`  Total contacts: ${savedContacts.length}`);
-                      console.log(`  Contacts with notes: ${contactsWithNotes.length}`);
-                      if (contactsWithNotes.length > 0) {
-                        console.log('  Contacts with notes:');
-                        contactsWithNotes.slice(0, 10).forEach((c, idx) => {
-                          console.log(`    [${idx + 1}] ${c.firstName} ${c.lastName}: "${c.notes}"`);
-                        });
-                      } else {
-                        console.log('  ❌ No contacts with notes found');
-                        console.log('  Sample contact (first):', savedContacts[0]);
-                        console.log('  Full JSON (first contact):', JSON.stringify(savedContacts[0], null, 2));
-                      }
-                      alert(`Diagnostic complete! Check console.\nTotal: ${savedContacts.length}\nWith notes: ${contactsWithNotes.length}`);
-                    }
-                  }
-                } catch (error) {
-                  console.error('Diagnostic error:', error);
-                  alert('Error running diagnostic. Check console.');
-                }
-              }}
-              className="px-4 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors whitespace-nowrap font-medium"
-              title="Check what's actually saved in localStorage"
-            >
-              🔍 Check Data
-            </button>
+        <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
+          {/* Header with Export/Import buttons */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">
+              Contact Chronicle
+            </h1>
+            <div className="flex flex-wrap gap-2 sm:gap-3">
+              <button
+                onClick={handleExportContacts}
+                className="px-3 sm:px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all shadow-md hover:shadow-lg text-sm sm:text-base"
+              >
+                📥 Export Contacts
+              </button>
+              <label className="px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all shadow-md hover:shadow-lg cursor-pointer text-sm sm:text-base text-center">
+                📤 Import Contacts
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json"
+                  onChange={handleImportContacts}
+                  className="hidden"
+                />
+              </label>
+              <button
+                onClick={handleCheckData}
+                className="px-3 sm:px-4 py-2 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg hover:from-green-600 hover:to-teal-600 transition-all shadow-md hover:shadow-lg text-sm sm:text-base"
+              >
+                🔍 Check Data
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* Info box for export/import */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
-          <p className="text-xs sm:text-sm text-blue-700">
-            <strong>💡 Transfer your data:</strong> Use <strong>Export Contacts</strong> to download all your contacts with notes from localhost, then <strong>Import Contacts</strong> on production to upload them. Existing contacts will be updated (notes merged), new ones will be added.
-          </p>
-        </div>
-
-        {/* Connections Dashboard */}
-        <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6 bg-gradient-to-br from-white to-purple-50">
-          <h2 className="text-base sm:text-lg lg:text-xl font-semibold mb-3 sm:mb-4 text-purple-800">Connections Dashboard</h2>
-          
-          {/* Statistics */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
-            <div className="bg-gradient-to-br from-blue-100 to-blue-200 p-3 sm:p-4 rounded-lg shadow-sm border border-blue-300">
-              <div className="text-xs sm:text-sm text-blue-700 mb-1">Total Contacts</div>
-              <div className="text-2xl sm:text-3xl font-bold text-blue-800">{stats.totalContacts}</div>
-              <div className="text-xs text-blue-600 mt-1 hidden sm:block">Sum across all months</div>
+          {/* Dashboard Stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+            <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-3 sm:p-4 bg-gradient-to-br from-white to-purple-50">
+              <div className="text-xs sm:text-sm text-purple-600 mb-1">Total Contacts</div>
+              <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-purple-800">{stats.total}</div>
             </div>
-            <div className="bg-gradient-to-br from-green-100 to-teal-100 p-3 sm:p-4 rounded-lg shadow-sm border border-green-300">
-              <div className="text-xs sm:text-sm text-green-700 mb-1">Avg / Month</div>
-              <div className="text-2xl sm:text-3xl font-bold text-green-800">{stats.avgPerMonth}</div>
-              <div className="text-xs text-green-600 mt-1 hidden sm:block">Mean contacts per month</div>
+            <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-3 sm:p-4 bg-gradient-to-br from-white to-blue-50">
+              <div className="text-xs sm:text-sm text-blue-600 mb-1">Avg per Month</div>
+              <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-800">{stats.avgPerMonth}</div>
             </div>
-            <div className="bg-gradient-to-br from-yellow-100 to-amber-100 p-3 sm:p-4 rounded-lg shadow-sm border border-yellow-300">
-              <div className="text-xs sm:text-sm text-yellow-700 mb-1">Peak Quarter</div>
-              <div className="text-lg sm:text-2xl font-bold text-yellow-800 break-words">{stats.peakMonth}</div>
-              <div className="text-xs text-yellow-600 mt-1">({stats.peakCount} contacts)</div>
+            <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-3 sm:p-4 bg-gradient-to-br from-white to-pink-50">
+              <div className="text-xs sm:text-sm text-pink-600 mb-1">Peak Month</div>
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold text-pink-800">
+                {stats.peakMonth ? `${stats.peakMonth.month}: ${stats.peakMonth.count}` : 'N/A'}
+              </div>
             </div>
-            <div className="bg-gradient-to-br from-purple-100 to-pink-100 p-3 sm:p-4 rounded-lg shadow-sm border border-purple-300">
-              <div className="text-xs sm:text-sm text-purple-700 mb-1">High-Activity Months</div>
-              <div className="text-2xl sm:text-3xl font-bold text-purple-800">{stats.highActivityPercentage}%</div>
-              <div className="text-xs text-purple-600 mt-1 hidden sm:block">Above median volume</div>
+            <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-3 sm:p-4 bg-gradient-to-br from-white to-teal-50">
+              <div className="text-xs sm:text-sm text-teal-600 mb-1">High Activity</div>
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold text-teal-800">{stats.highActivityMonths.length}</div>
             </div>
           </div>
 
           {/* Chart */}
-          <div className="mb-3">
-            <h3 className="text-base sm:text-lg font-medium mb-3 text-purple-800">Contacts Added by Quarter (5 Years)</h3>
-            {isClient ? (
-              <div className="w-full h-[300px] sm:h-[400px] lg:h-[450px] min-h-[300px]" style={{ minHeight: '300px' }}>
-                <ResponsiveContainer width="100%" height="100%" minHeight={300} minWidth={300}>
-                  <BarChart 
-                    data={contactsByQuarter}
-                    margin={{ top: 20, right: 20, left: 60, bottom: 80 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e9d5ff" />
+          {quarterlyData.length > 0 && (
+            <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-3 sm:p-4 mb-4 sm:mb-6 bg-gradient-to-br from-white to-purple-50">
+              <h3 className="text-base sm:text-lg font-medium mb-3 text-purple-800">Contacts Added by Quarter (5 Years)</h3>
+              <div className="min-h-[300px] w-full">
+                <ResponsiveContainer width="100%" height={350} minHeight={300}>
+                  <BarChart data={quarterlyData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
                     <XAxis 
                       dataKey="quarter" 
                       angle={-45}
                       textAnchor="end"
                       height={80}
+                      tick={{ fontSize: 11 }}
                       interval={0}
-                      tick={{ fill: '#9333ea', fontSize: 11 }}
-                      label={{ value: 'Quarter', position: 'insideBottom', offset: -5, fill: '#9333ea', fontSize: 13 }}
                     />
                     <YAxis 
-                      width={55}
-                      tick={{ fill: '#9333ea', fontSize: 12 }}
-                      label={{ 
-                        value: 'Number of Contacts Added', 
-                        angle: -90, 
-                        position: 'insideLeft',
-                        style: { textAnchor: 'middle', fill: '#9333ea', fontSize: 13 },
-                        offset: -10
-                      }}
-                      domain={[0, (dataMax: number) => Math.max(dataMax + 5, 10)]}
-                      allowDecimals={false}
+                      label={{ value: 'Number of Contacts', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle' } }}
+                      domain={[0, 'dataMax']}
+                      width={60}
                     />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: '#f3e8ff', 
-                        border: '1px solid #d8b4fe',
-                        borderRadius: '8px',
-                        color: '#9333ea',
-                        fontSize: '13px'
-                      }}
-                      formatter={(value: any) => [value, 'Contacts']}
-                      labelFormatter={(label: string) => `Quarter: ${label}`}
-                    />
-                    <Bar 
-                      dataKey="count" 
-                      fill="#d8b4fe" 
-                      radius={[6, 6, 0, 0]} 
-                      barSize={40}
-                    />
+                    <Tooltip formatter={(value: number | string) => [value, 'Contacts']} />
+                    <Bar dataKey="contacts" fill="url(#colorGradient)" radius={[8, 8, 0, 0]}>
+                      <defs>
+                        <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#a855f7" stopOpacity={0.8} />
+                          <stop offset="100%" stopColor="#ec4899" stopOpacity={0.8} />
+                        </linearGradient>
+                      </defs>
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            ) : (
-              <div className="w-full h-[300px] sm:h-[400px] lg:h-[450px] flex items-center justify-center bg-purple-50 rounded-lg border border-purple-200">
-                <p className="text-purple-600">Loading chart...</p>
-              </div>
-            )}
-            <p className="text-xs sm:text-sm text-purple-600 mt-2">
-              Bars show quarterly additions; data grouped by quarters (Q1, Q2, Q3, Q4).
-            </p>
-          </div>
-        </div>
+              <p className="text-xs sm:text-sm text-purple-600 mt-2">Bars show quarterly additions; cycles indicate bursts vs. lulls.</p>
+            </div>
+          )}
 
-        {/* Filter Panel */}
-        <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-4 sm:p-6 mb-4 sm:mb-6 bg-gradient-to-br from-white to-purple-50">
-          <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-purple-800">Filter Panel</h2>
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-purple-700 mb-1.5">Search</label>
+          {/* Search and Filter */}
+          <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-3 sm:p-4 mb-4 sm:mb-6 bg-gradient-to-br from-white to-purple-50">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <input
                 type="text"
-                placeholder="Search by name, email, or phone..."
+                placeholder="Search contacts..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 sm:px-4 py-2.5 sm:py-2 text-base border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
+                className="flex-1 px-3 sm:px-4 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm sm:text-base"
               />
-            </div>
-            <div className="sm:w-48 lg:w-64">
-              <label className="block text-sm font-medium text-purple-700 mb-1.5">Source</label>
               <select
                 value={selectedSource}
                 onChange={(e) => setSelectedSource(e.target.value)}
-                className="w-full px-3 sm:px-4 py-2.5 sm:py-2 text-base border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
+                className="px-3 sm:px-4 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm sm:text-base"
               >
                 <option value="all">All Sources</option>
-                {sources.map((source) => (
-                  <option key={source} value={source}>
-                    {source}
-                  </option>
-                ))}
+                <option value="LinkedIn">LinkedIn</option>
+                <option value="Google">Google</option>
+                <option value="Uploaded">Uploaded</option>
               </select>
             </div>
           </div>
-          <div className="mt-3 text-xs sm:text-sm text-purple-600">
-            Showing {filteredContacts.length} of {contacts.length} contacts
-          </div>
-        </div>
 
-        {/* Contacts Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-4 sm:p-6 bg-gradient-to-br from-white to-purple-50">
-          <h2 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-5 text-purple-800">
-            <span className="hidden sm:inline">Exportable Table of Contacts With Ability to Search or Append Notes</span>
-            <span className="sm:hidden">Contacts</span>
-          </h2>
-          
-          {/* Mobile Card View */}
-          <div className="lg:hidden space-y-3">
-            {filteredContacts.length === 0 ? (
-              <div className="text-center py-8 text-purple-500">
-                No contacts found. Upload contacts to get started.
-              </div>
-            ) : (
-              filteredContacts.slice(0, 100).map((contact) => (
-                <div
-                  key={contact.id}
-                  className="border border-purple-200 rounded-lg p-4 bg-gradient-to-br from-white to-purple-50 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h3 className="font-semibold text-purple-800 text-base">
-                        {contact.firstName} {contact.lastName}
-                      </h3>
-                      <p className="text-sm text-purple-600">{contact.source || 'Uploaded'}</p>
-                    </div>
-                    <span className="text-xs text-purple-500">{contact.dateAdded || '-'}</span>
-                  </div>
-                  <div className="space-y-1.5 text-sm">
-                    {contact.emailAddress && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-purple-500">Email:</span>
-                        <a href={`mailto:${contact.emailAddress}`} className="text-purple-600 hover:underline break-all">
-                          {contact.emailAddress}
-                        </a>
-                      </div>
-                    )}
-                    {contact.phoneNumber && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-purple-500">Phone:</span>
-                        <a href={`tel:${contact.phoneNumber}`} className="text-purple-600 hover:underline">
-                          {contact.phoneNumber}
-                        </a>
-                      </div>
-                    )}
-                    {contact.linkedInProfile && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-purple-500">LinkedIn:</span>
-                        <a
-                          href={contact.linkedInProfile}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-purple-600 hover:text-pink-600 hover:underline"
-                        >
-                          View Profile
-                        </a>
-                      </div>
-                    )}
-                    {contact.notes && (
-                      <div className="pt-1 border-t border-purple-200">
-                        <p className="text-purple-600 text-xs line-clamp-2">{contact.notes}</p>
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => handleEditContact(contact)}
-                    className="mt-3 w-full py-2 px-3 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors font-medium"
-                  >
-                    {contact.notes ? 'Edit' : 'Add'} Notes
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Desktop Table View */}
-          <div className="hidden lg:block overflow-x-auto">
-            <table className="w-full text-sm lg:text-base">
-              <thead className="bg-gradient-to-r from-purple-100 to-pink-100 border-b border-purple-200">
-                <tr>
-                  <th className="px-4 lg:px-5 py-3 lg:py-4 text-left font-semibold text-purple-800 text-xs lg:text-sm">First Name</th>
-                  <th className="px-4 lg:px-5 py-3 lg:py-4 text-left font-semibold text-purple-800 text-xs lg:text-sm">Last Name</th>
-                  <th className="px-4 lg:px-5 py-3 lg:py-4 text-left font-semibold text-purple-800 text-xs lg:text-sm">Email</th>
-                  <th className="px-4 lg:px-5 py-3 lg:py-4 text-left font-semibold text-purple-800 text-xs lg:text-sm">Phone</th>
-                  <th className="px-4 lg:px-5 py-3 lg:py-4 text-left font-semibold text-purple-800 text-xs lg:text-sm">LinkedIn</th>
-                  <th className="px-4 lg:px-5 py-3 lg:py-4 text-left font-semibold text-purple-800 text-xs lg:text-sm">Date Added</th>
-                  <th className="px-4 lg:px-5 py-3 lg:py-4 text-left font-semibold text-purple-800 text-xs lg:text-sm">Source</th>
-                  <th className="px-4 lg:px-5 py-3 lg:py-4 text-left font-semibold text-purple-800 text-xs lg:text-sm">Notes</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-purple-200">
-                {filteredContacts.length === 0 ? (
+          {/* Contacts Table */}
+          <div className="bg-white rounded-lg shadow-sm border border-purple-200 overflow-hidden mb-4 sm:mb-6">
+            {/* Desktop Table View */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-purple-500">
-                      No contacts found. Upload contacts to get started.
-                    </td>
+                    <th className="px-4 py-3 text-left text-xs sm:text-sm font-semibold">Name</th>
+                    <th className="px-4 py-3 text-left text-xs sm:text-sm font-semibold">Email</th>
+                    <th className="px-4 py-3 text-left text-xs sm:text-sm font-semibold">Phone</th>
+                    <th className="px-4 py-3 text-left text-xs sm:text-sm font-semibold">LinkedIn</th>
+                    <th className="px-4 py-3 text-left text-xs sm:text-sm font-semibold">Date Added</th>
+                    <th className="px-4 py-3 text-left text-xs sm:text-sm font-semibold">Source</th>
+                    <th className="px-4 py-3 text-left text-xs sm:text-sm font-semibold">Notes</th>
+                    <th className="px-4 py-3 text-left text-xs sm:text-sm font-semibold">Actions</th>
                   </tr>
-                ) : (
-                  filteredContacts.slice(0, 100).map((contact) => (
+                </thead>
+                <tbody className="divide-y divide-purple-100">
+                  {filteredContacts.map((contact) => (
                     <tr key={contact.id} className="hover:bg-purple-50 transition-colors">
-                      <td className="px-4 lg:px-5 py-3 lg:py-4">{contact.firstName}</td>
-                      <td className="px-4 lg:px-5 py-3 lg:py-4">{contact.lastName}</td>
-                      <td className="px-4 lg:px-5 py-3 lg:py-4">{contact.emailAddress || '-'}</td>
-                      <td className="px-4 lg:px-5 py-3 lg:py-4">{contact.phoneNumber || '-'}</td>
-                      <td className="px-4 lg:px-5 py-3 lg:py-4">
+                      <td className="px-4 py-3 text-sm text-gray-800">
+                        {contact.firstName} {contact.lastName}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{contact.emailAddress || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{contact.phoneNumber || '-'}</td>
+                      <td className="px-4 py-3 text-sm">
                         {contact.linkedInProfile ? (
-                          <a
-                            href={contact.linkedInProfile}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-purple-600 hover:text-pink-600 hover:underline font-medium"
-                          >
-                            Profile
+                          <a href={contact.linkedInProfile} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                            View
                           </a>
                         ) : (
                           '-'
                         )}
                       </td>
-                      <td className="px-4 lg:px-5 py-3 lg:py-4">{contact.dateAdded || '-'}</td>
-                      <td className="px-4 lg:px-5 py-3 lg:py-4">{contact.source || '-'}</td>
-                      <td className="px-4 lg:px-5 py-3 lg:py-4 max-w-xs">
-                        {contact.notes ? (
-                          <div className="text-sm text-purple-600 truncate" title={contact.notes}>
-                            {contact.notes.substring(0, 30)}...
-                          </div>
-                        ) : (
-                          <span className="text-purple-300 text-sm">-</span>
-                        )}
+                      <td className="px-4 py-3 text-sm text-gray-600">{contact.dateAdded || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{contact.source || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate">
+                        {contact.notes || '-'}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
                         <button
                           onClick={() => handleEditContact(contact)}
-                          className="text-purple-600 hover:text-pink-600 hover:underline text-sm ml-2 font-medium"
+                          className="text-purple-600 hover:text-purple-800 hover:underline"
                         >
-                          {contact.notes ? 'Edit' : 'Add'} Notes
+                          Edit
                         </button>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-        {/* Notes Modal */}
-        {editingContact && (
-          <div className="fixed inset-0 bg-purple-900 bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg p-4 sm:p-6 max-w-md w-full mx-4 shadow-xl border-2 border-purple-200 bg-gradient-to-br from-white to-purple-50 max-h-[90vh] overflow-y-auto">
-              <h3 className="text-base sm:text-lg font-semibold mb-4 text-purple-800">
-                Notes for {editingContact.firstName} {editingContact.lastName}
-              </h3>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="w-full px-3 py-2.5 text-base border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-400 h-32 mb-4 bg-white resize-none"
-                placeholder="Add notes about this contact..."
-              />
-              {editingContact.notes && (
-                <p className="text-xs text-purple-600 mb-3">
-                  Previous notes: {editingContact.notes}
-                </p>
-              )}
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  onClick={handleSaveNotes}
-                  className="flex-1 px-4 py-3 sm:py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all shadow-sm font-medium text-base sm:text-sm"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => {
-                    setEditingContact(null);
-                    setNotes('');
-                  }}
-                  className="flex-1 px-4 py-3 sm:py-2 bg-pink-200 text-pink-700 rounded-lg hover:bg-pink-300 transition-colors shadow-sm font-medium text-base sm:text-sm"
-                >
-                  Cancel
-                </button>
+            {/* Mobile Card View */}
+            <div className="sm:hidden divide-y divide-purple-100">
+              {filteredContacts.map((contact) => (
+                <div key={contact.id} className="p-4 hover:bg-purple-50 transition-colors">
+                  <div className="font-semibold text-gray-800 mb-2">
+                    {contact.firstName} {contact.lastName}
+                  </div>
+                  <div className="space-y-1 text-sm text-gray-600">
+                    {contact.emailAddress && <div>Email: {contact.emailAddress}</div>}
+                    {contact.phoneNumber && <div>Phone: {contact.phoneNumber}</div>}
+                    {contact.linkedInProfile && (
+                      <div>
+                        LinkedIn:{' '}
+                        <a href={contact.linkedInProfile} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          View Profile
+                        </a>
+                      </div>
+                    )}
+                    <div>Date Added: {contact.dateAdded || '-'}</div>
+                    <div>Source: {contact.source || '-'}</div>
+                    {contact.notes && <div className="pt-1 border-t border-purple-200">Notes: {contact.notes}</div>}
+                  </div>
+                  <button
+                    onClick={() => handleEditContact(contact)}
+                    className="mt-3 text-purple-600 hover:text-purple-800 hover:underline text-sm"
+                  >
+                    Edit Notes
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {filteredContacts.length === 0 && (
+              <div className="p-8 text-center text-gray-500">
+                No contacts found matching your search criteria.
+              </div>
+            )}
+          </div>
+
+          {/* Edit Notes Modal */}
+          {editingContact && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-lg p-6 max-w-md w-full">
+                <h2 className="text-xl font-bold mb-4 text-purple-800">
+                  Edit Notes for {editingContact.firstName} {editingContact.lastName}
+                </h2>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full px-4 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 mb-4 min-h-[100px]"
+                  placeholder="Add notes about this contact..."
+                />
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={handleCancelEdit}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveNotes}
+                    className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all"
+                  >
+                    Save
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-      </main>
-      <Footer />
+          )}
+        </main>
+        <Footer />
       </div>
     </ProtectedRoute>
   );
 }
-
