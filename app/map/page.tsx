@@ -288,6 +288,9 @@ export default function MapPage() {
     const noteText = contact.notes;
     const noteTextLower = noteText.toLowerCase();
     
+    // Log for debugging - show what we're searching for
+    console.log(`  🔍 Extracting locations from "${contact.firstName} ${contact.lastName}" notes:`, noteText.substring(0, 150));
+    
     // Try to match ALL known city names in the notes
     for (const [cityKey, coords] of Object.entries(cityCoordinates)) {
       const cityKeyLower = cityKey.toLowerCase();
@@ -365,6 +368,7 @@ export default function MapPage() {
         
         if (!alreadyFound) {
           locations.push(cityKey);
+          console.log(`    ✅ Matched location: "${cityKey}" from notes`);
         }
       }
     }
@@ -724,6 +728,7 @@ export default function MapPage() {
     console.log(`🗺️ ===== LOCATION PERIODS UPDATED =====`);
     console.log(`  📍 locationPeriods array reference:`, locationPeriods);
     console.log(`  📍 Total locations: ${locationPeriods.length}`);
+    console.log(`  📍 Map key: ${mapKey}`);
     if (locationPeriods.length > 0) {
       const locationsList = locationPeriods.map(l => `${l.city} [${l.source}] at [${l.coordinates.lat}, ${l.coordinates.lng}] (${l.contacts.length} contacts)`);
       console.log(`  📍 Current locations:`, locationsList);
@@ -738,12 +743,19 @@ export default function MapPage() {
     } else {
       console.log(`  ⚠️ No locations found!`);
       console.log(`  - Contacts total: ${contacts.length}`);
-      console.log(`  - Contacts with notes: ${contacts.filter(c => c.notes && c.notes.trim()).length}`);
+      const contactsWithNotes = contacts.filter(c => c.notes && c.notes.trim());
+      console.log(`  - Contacts with notes: ${contactsWithNotes.length}`);
+      if (contactsWithNotes.length > 0) {
+        console.log(`  - Sample notes:`, contactsWithNotes.slice(0, 3).map(c => ({
+          name: `${c.firstName} ${c.lastName}`,
+          notes: c.notes?.substring(0, 100)
+        })));
+      }
       console.log(`  - Timeline events: ${timelineEvents.length}`);
       console.log(`  - Timeline with geographic: ${timelineEvents.filter(e => e.geographicEvent && e.geographicEvent.trim()).length}`);
     }
     console.log(`🗺️ ====================================`);
-  }, [locationPeriods, contacts, timelineEvents]); // Include full arrays, not just lengths
+  }, [locationPeriods, contacts, timelineEvents, mapKey]); // Include mapKey to see when it changes
 
   // Calculate center of all locations for initial map view
   const mapCenter = useMemo(() => {

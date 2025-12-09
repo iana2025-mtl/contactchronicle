@@ -348,9 +348,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     
     // CRITICAL: Set state with new array reference
-    setContacts(updatedContacts);
+    // Force a completely new array reference by spreading twice
+    setContacts([...updatedContacts]);
     
-    console.log(`  ✅ setContacts called with new array`);
+    console.log(`  ✅ setContacts called with new array (length: ${updatedContacts.length})`);
+    console.log(`  ✅ Array reference changed: ${contacts !== updatedContacts}`);
     
     // Immediately save to localStorage if user is logged in and data is loaded
     if (user && isDataLoaded) {
