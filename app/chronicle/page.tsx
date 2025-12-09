@@ -563,6 +563,25 @@ export default function ChroniclePage() {
             window.alert(`⚠️ WARNING: ${importedWithNotes.length} contacts in file have notes, but 0 in batch update objects!\nThis indicates a bug in the contact matching or notes assignment logic.`);
           }
           
+          // FINAL CHECK: Log the actual objects being passed to batch update
+          console.log(`\n🚨🚨🚨 FINAL CHECK BEFORE BATCH UPDATE 🚨🚨🚨`);
+          const withNotes = contactsToUpdate.filter(u => u.contact.notes && u.contact.notes.trim());
+          console.log(`  Total contacts to update: ${contactsToUpdate.length}`);
+          console.log(`  Contacts WITH notes in batch: ${withNotes.length}`);
+          if (withNotes.length > 0) {
+            console.log(`  First 3 contacts WITH notes:`, withNotes.slice(0, 3).map(u => ({
+              id: u.id,
+              name: `${u.contact.firstName} ${u.contact.lastName}`,
+              notes: u.contact.notes.substring(0, 50),
+              hasNotesKey: 'notes' in u.contact,
+              allKeys: Object.keys(u.contact)
+            })));
+          } else {
+            console.error(`  ❌❌❌ NO CONTACTS WITH NOTES IN BATCH!`);
+            console.error(`  This means notes were lost before batch update call!`);
+          }
+          console.log(`🚨🚨🚨 CALLING updateMultipleContacts NOW 🚨🚨🚨\n`);
+          
           updateMultipleContacts(contactsToUpdate);
         }
         
