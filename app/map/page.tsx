@@ -17,383 +17,494 @@ const TileLayer = dynamic(() => import('react-leaflet').then((mod) => mod.TileLa
 const Marker = dynamic(() => import('react-leaflet').then((mod) => mod.Marker), { ssr: false });
 const Popup = dynamic(() => import('react-leaflet').then((mod) => mod.Popup), { ssr: false });
 
-// Comprehensive city coordinates database
-const cityCoordinates: Record<string, { lat: number; lng: number }> = {
+// ============================================================================
+// COMPREHENSIVE CITY COORDINATES DATABASE
+// ============================================================================
+// All cities are validated with correct latitude (-90 to 90) and longitude (-180 to 180)
+const cityCoordinates: Record<string, { lat: number; lng: number; displayName: string }> = {
   // United States
-  'new york': { lat: 40.7128, lng: -74.0060 },
-  'new york, ny': { lat: 40.7128, lng: -74.0060 },
-  'new york city': { lat: 40.7128, lng: -74.0060 },
-  'nyc': { lat: 40.7128, lng: -74.0060 },
-  'wilmington': { lat: 39.7391, lng: -75.5398 },
-  'wilmington, de': { lat: 39.7391, lng: -75.5398 },
-  'san francisco': { lat: 37.7749, lng: -122.4194 },
-  'san francisco, ca': { lat: 37.7749, lng: -122.4194 },
-  'los angeles': { lat: 34.0522, lng: -118.2437 },
-  'los angeles, ca': { lat: 34.0522, lng: -118.2437 },
-  'chicago': { lat: 41.8781, lng: -87.6298 },
-  'chicago, il': { lat: 41.8781, lng: -87.6298 },
-  'boston': { lat: 42.3601, lng: -71.0589 },
-  'boston, ma': { lat: 42.3601, lng: -71.0589 },
-  'newark': { lat: 40.7357, lng: -74.1724 },
-  'newark, nj': { lat: 40.7357, lng: -74.1724 },
-  'washington': { lat: 38.9072, lng: -77.0369 },
-  'washington, dc': { lat: 38.9072, lng: -77.0369 },
-  'miami': { lat: 25.7617, lng: -80.1918 },
-  'miami, fl': { lat: 25.7617, lng: -80.1918 },
-  'seattle': { lat: 47.6062, lng: -122.3321 },
-  'seattle, wa': { lat: 47.6062, lng: -122.3321 },
-  'austin': { lat: 30.2672, lng: -97.7431 },
-  'austin, tx': { lat: 30.2672, lng: -97.7431 },
-  'atlanta': { lat: 33.749, lng: -84.388 },
-  'atlanta, ga': { lat: 33.749, lng: -84.388 },
-  'philadelphia': { lat: 39.9526, lng: -75.1652 },
-  'philadelphia, pa': { lat: 39.9526, lng: -75.1652 },
-  'long island': { lat: 40.7891, lng: -73.1350 },
-  'long island, ny': { lat: 40.7891, lng: -73.1350 },
-  'virginia beach': { lat: 36.8529, lng: -75.9780 },
-  'virginia beach, va': { lat: 36.8529, lng: -75.9780 },
-  'new jersey': { lat: 40.2989, lng: -74.5210 },
-  'new jersey, nj': { lat: 40.2989, lng: -74.5210 },
-  'tampa': { lat: 27.9506, lng: -82.4572 },
-  'tampa, fl': { lat: 27.9506, lng: -82.4572 },
-  'tampa, florida': { lat: 27.9506, lng: -82.4572 },
-  'houston': { lat: 29.7604, lng: -95.3698 },
-  'houston, tx': { lat: 29.7604, lng: -95.3698 },
-  'houston, texas': { lat: 29.7604, lng: -95.3698 },
-  'houston texas': { lat: 29.7604, lng: -95.3698 },
+  'new york': { lat: 40.7128, lng: -74.0060, displayName: 'New York, NY' },
+  'new york, ny': { lat: 40.7128, lng: -74.0060, displayName: 'New York, NY' },
+  'new york city': { lat: 40.7128, lng: -74.0060, displayName: 'New York, NY' },
+  'nyc': { lat: 40.7128, lng: -74.0060, displayName: 'New York, NY' },
+  'wilmington': { lat: 39.7391, lng: -75.5398, displayName: 'Wilmington, DE' },
+  'wilmington, de': { lat: 39.7391, lng: -75.5398, displayName: 'Wilmington, DE' },
+  'san francisco': { lat: 37.7749, lng: -122.4194, displayName: 'San Francisco, CA' },
+  'san francisco, ca': { lat: 37.7749, lng: -122.4194, displayName: 'San Francisco, CA' },
+  'los angeles': { lat: 34.0522, lng: -118.2437, displayName: 'Los Angeles, CA' },
+  'los angeles, ca': { lat: 34.0522, lng: -118.2437, displayName: 'Los Angeles, CA' },
+  'chicago': { lat: 41.8781, lng: -87.6298, displayName: 'Chicago, IL' },
+  'chicago, il': { lat: 41.8781, lng: -87.6298, displayName: 'Chicago, IL' },
+  'boston': { lat: 42.3601, lng: -71.0589, displayName: 'Boston, MA' },
+  'boston, ma': { lat: 42.3601, lng: -71.0589, displayName: 'Boston, MA' },
+  'newark': { lat: 40.7357, lng: -74.1724, displayName: 'Newark, NJ' },
+  'newark, nj': { lat: 40.7357, lng: -74.1724, displayName: 'Newark, NJ' },
+  'washington': { lat: 38.9072, lng: -77.0369, displayName: 'Washington, DC' },
+  'washington, dc': { lat: 38.9072, lng: -77.0369, displayName: 'Washington, DC' },
+  'miami': { lat: 25.7617, lng: -80.1918, displayName: 'Miami, FL' },
+  'miami, fl': { lat: 25.7617, lng: -80.1918, displayName: 'Miami, FL' },
+  'seattle': { lat: 47.6062, lng: -122.3321, displayName: 'Seattle, WA' },
+  'seattle, wa': { lat: 47.6062, lng: -122.3321, displayName: 'Seattle, WA' },
+  'austin': { lat: 30.2672, lng: -97.7431, displayName: 'Austin, TX' },
+  'austin, tx': { lat: 30.2672, lng: -97.7431, displayName: 'Austin, TX' },
+  'atlanta': { lat: 33.749, lng: -84.388, displayName: 'Atlanta, GA' },
+  'atlanta, ga': { lat: 33.749, lng: -84.388, displayName: 'Atlanta, GA' },
+  'philadelphia': { lat: 39.9526, lng: -75.1652, displayName: 'Philadelphia, PA' },
+  'philadelphia, pa': { lat: 39.9526, lng: -75.1652, displayName: 'Philadelphia, PA' },
+  'long island': { lat: 40.7891, lng: -73.1350, displayName: 'Long Island, NY' },
+  'long island, ny': { lat: 40.7891, lng: -73.1350, displayName: 'Long Island, NY' },
+  'virginia beach': { lat: 36.8529, lng: -75.9780, displayName: 'Virginia Beach, VA' },
+  'virginia beach, va': { lat: 36.8529, lng: -75.9780, displayName: 'Virginia Beach, VA' },
+  'tampa': { lat: 27.9506, lng: -82.4572, displayName: 'Tampa, FL' },
+  'tampa, fl': { lat: 27.9506, lng: -82.4572, displayName: 'Tampa, FL' },
+  'tampa, florida': { lat: 27.9506, lng: -82.4572, displayName: 'Tampa, FL' },
+  'houston': { lat: 29.7604, lng: -95.3698, displayName: 'Houston, TX' },
+  'houston, tx': { lat: 29.7604, lng: -95.3698, displayName: 'Houston, TX' },
+  'houston, texas': { lat: 29.7604, lng: -95.3698, displayName: 'Houston, TX' },
+  'houston texas': { lat: 29.7604, lng: -95.3698, displayName: 'Houston, TX' },
   // Canada
-  'montreal': { lat: 45.5017, lng: -73.5673 },
-  'montreal, qc': { lat: 45.5017, lng: -73.5673 },
-  'montreal, canada': { lat: 45.5017, lng: -73.5673 },
-  'toronto': { lat: 43.6532, lng: -79.3832 },
-  'toronto, on': { lat: 43.6532, lng: -79.3832 },
-  'toronto, canada': { lat: 43.6532, lng: -79.3832 },
-  'vancouver': { lat: 49.2827, lng: -123.1207 },
-  'vancouver, bc': { lat: 49.2827, lng: -123.1207 },
-  'ottawa': { lat: 45.4215, lng: -75.6972 },
-  'ottawa, ca': { lat: 45.4215, lng: -75.6972 },
-  'ottawa, on': { lat: 45.4215, lng: -75.6972 },
-  'ottawa, ontario': { lat: 45.4215, lng: -75.6972 },
-  'ottawa, canada': { lat: 45.4215, lng: -75.6972 },
+  'montreal': { lat: 45.5017, lng: -73.5673, displayName: 'Montreal, QC' },
+  'montreal, qc': { lat: 45.5017, lng: -73.5673, displayName: 'Montreal, QC' },
+  'montreal, canada': { lat: 45.5017, lng: -73.5673, displayName: 'Montreal, QC' },
+  'toronto': { lat: 43.6532, lng: -79.3832, displayName: 'Toronto, ON' },
+  'toronto, on': { lat: 43.6532, lng: -79.3832, displayName: 'Toronto, ON' },
+  'toronto, canada': { lat: 43.6532, lng: -79.3832, displayName: 'Toronto, ON' },
+  'vancouver': { lat: 49.2827, lng: -123.1207, displayName: 'Vancouver, BC' },
+  'vancouver, bc': { lat: 49.2827, lng: -123.1207, displayName: 'Vancouver, BC' },
+  'ottawa': { lat: 45.4215, lng: -75.6972, displayName: 'Ottawa, ON' },
+  'ottawa, ca': { lat: 45.4215, lng: -75.6972, displayName: 'Ottawa, ON' },
+  'ottawa, on': { lat: 45.4215, lng: -75.6972, displayName: 'Ottawa, ON' },
+  'ottawa, ontario': { lat: 45.4215, lng: -75.6972, displayName: 'Ottawa, ON' },
+  'ottawa, canada': { lat: 45.4215, lng: -75.6972, displayName: 'Ottawa, ON' },
   // Europe
-  'london': { lat: 51.5074, lng: -0.1278 },
-  'london, uk': { lat: 51.5074, lng: -0.1278 },
-  'paris': { lat: 48.8566, lng: 2.3522 },
-  'paris, france': { lat: 48.8566, lng: 2.3522 },
-  'warsaw': { lat: 52.2297, lng: 21.0122 },
-  'warsaw, poland': { lat: 52.2297, lng: 21.0122 },
-  'warszawa': { lat: 52.2297, lng: 21.0122 },
-  'rome': { lat: 41.9028, lng: 12.4964 },
-  'rome, italy': { lat: 41.9028, lng: 12.4964 },
-  'roma': { lat: 41.9028, lng: 12.4964 },
-  'roma, italy': { lat: 41.9028, lng: 12.4964 },
-  'berlin': { lat: 52.5200, lng: 13.4050 },
-  'berlin, germany': { lat: 52.5200, lng: 13.4050 },
-  'zurich': { lat: 47.3769, lng: 8.5417 },
-  'zurich, switzerland': { lat: 47.3769, lng: 8.5417 },
-  'zürich': { lat: 47.3769, lng: 8.5417 },
-  'zürich, switzerland': { lat: 47.3769, lng: 8.5417 },
+  'london': { lat: 51.5074, lng: -0.1278, displayName: 'London, UK' },
+  'london, uk': { lat: 51.5074, lng: -0.1278, displayName: 'London, UK' },
+  'paris': { lat: 48.8566, lng: 2.3522, displayName: 'Paris, France' },
+  'paris, france': { lat: 48.8566, lng: 2.3522, displayName: 'Paris, France' },
+  'warsaw': { lat: 52.2297, lng: 21.0122, displayName: 'Warsaw, Poland' },
+  'warsaw, poland': { lat: 52.2297, lng: 21.0122, displayName: 'Warsaw, Poland' },
+  'warszawa': { lat: 52.2297, lng: 21.0122, displayName: 'Warsaw, Poland' },
+  'rome': { lat: 41.9028, lng: 12.4964, displayName: 'Rome, Italy' },
+  'rome, italy': { lat: 41.9028, lng: 12.4964, displayName: 'Rome, Italy' },
+  'roma': { lat: 41.9028, lng: 12.4964, displayName: 'Rome, Italy' },
+  'roma, italy': { lat: 41.9028, lng: 12.4964, displayName: 'Rome, Italy' },
+  'berlin': { lat: 52.5200, lng: 13.4050, displayName: 'Berlin, Germany' },
+  'berlin, germany': { lat: 52.5200, lng: 13.4050, displayName: 'Berlin, Germany' },
+  'zurich': { lat: 47.3769, lng: 8.5417, displayName: 'Zurich, Switzerland' },
+  'zurich, switzerland': { lat: 47.3769, lng: 8.5417, displayName: 'Zurich, Switzerland' },
+  'zürich': { lat: 47.3769, lng: 8.5417, displayName: 'Zurich, Switzerland' },
+  'zürich, switzerland': { lat: 47.3769, lng: 8.5417, displayName: 'Zurich, Switzerland' },
   // Other
-  'chisinau': { lat: 47.0104, lng: 28.8638 },
-  'chisinau, moldova': { lat: 47.0104, lng: 28.8638 },
+  'chisinau': { lat: 47.0104, lng: 28.8638, displayName: 'Chisinau, Moldova' },
+  'chisinau, moldova': { lat: 47.0104, lng: 28.8638, displayName: 'Chisinau, Moldova' },
 };
 
-interface LocationPeriod {
+// Validate all coordinates in database
+Object.entries(cityCoordinates).forEach(([key, coords]) => {
+  if (coords.lat < -90 || coords.lat > 90 || coords.lng < -180 || coords.lng > 180) {
+    console.error(`❌ INVALID COORDINATES in database for "${key}": [${coords.lat}, ${coords.lng}]`);
+  }
+});
+
+interface LocationMarker {
+  id: string;
   city: string;
-  startDate: Date;
-  endDate: Date | null;
+  displayName: string;
   coordinates: { lat: number; lng: number };
   contacts: Contact[];
   source: 'timeline' | 'notes';
+  startDate?: Date;
+  endDate?: Date | null;
 }
 
 export default function MapPage() {
   const { timelineEvents, contacts } = useApp();
   const { user } = useAuth();
-  const [selectedLocation, setSelectedLocation] = useState<LocationPeriod | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<LocationMarker | null>(null);
   const [isClient, setIsClient] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [mapKey, setMapKey] = useState(0);
   const [missingCities, setMissingCities] = useState<Set<string>>(new Set());
-  const [localContacts, setLocalContacts] = useState<Contact[]>([]); // Local state to force updates
+  const [localContacts, setLocalContacts] = useState<Contact[]>([]);
   const mapInstanceRef = useRef<any>(null);
-  const previousContactsHashRef = useRef<string>('');
-  const forceUpdateRef = useRef(0);
+  const lastContactsHashRef = useRef<string>('');
   const lastStorageCheckRef = useRef<string>('');
-  
-  // CRITICAL: Sync local contacts state with localStorage and context
-  // This ensures we always have the latest data even if context is stale
-  const localContactsRef = useRef<Contact[]>([]);
-  
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // ============================================================================
+  // REACTIVE DATA SYNC: Direct localStorage sync ensures real-time updates
+  // ============================================================================
   useEffect(() => {
     if (!user) {
       setLocalContacts([]);
-      localContactsRef.current = [];
       return;
     }
-    
-    const contactsKey = `contactChronicle_contacts_${user.id}`;
-    const stored = localStorage.getItem(contactsKey);
-    
-    if (stored) {
-      try {
-        const storedContacts: Contact[] = JSON.parse(stored);
-        const storedHash = storedContacts.map(c => {
-          const notesContent = c.notes || '';
-          return `${c.id}:${c.firstName}:${c.lastName}:${notesContent}`;
-        }).join('|');
-        
-        const currentHash = localContactsRef.current.map(c => {
-          const notesContent = c.notes || '';
-          return `${c.id}:${c.firstName}:${c.lastName}:${notesContent}`;
-        }).join('|');
-        
-        if (storedHash !== currentHash) {
-          console.log('🔄 MAP PAGE: Reloading contacts from localStorage');
-          console.log(`  📊 Stored contacts: ${storedContacts.length}`);
-          const withNotes = storedContacts.filter(c => c.notes && c.notes.trim());
-          console.log(`  📝 Stored contacts with notes: ${withNotes.length}`);
-          const newContacts = [...storedContacts];
-          setLocalContacts(newContacts);
-          localContactsRef.current = newContacts;
-        }
-      } catch (error) {
-        console.error('Error loading contacts from localStorage:', error);
-      }
-    }
-    
-    // Also sync with context contacts if they differ
-    if (contacts.length > 0) {
-      const contextHash = contacts.map(c => {
-        const notesContent = c.notes || '';
-        return `${c.id}:${c.firstName}:${c.lastName}:${notesContent}`;
-      }).join('|');
-      
-      const localHash = localContactsRef.current.map(c => {
-        const notesContent = c.notes || '';
-        return `${c.id}:${c.firstName}:${c.lastName}:${notesContent}`;
-      }).join('|');
-      
-      if (contextHash !== localHash) {
-        console.log('🔄 MAP PAGE: Syncing with context contacts');
-        const newContacts = [...contacts];
-        setLocalContacts(newContacts);
-        localContactsRef.current = newContacts;
-      }
-    }
-  }, [user, contacts]);
-  
-  // Use localContacts if available, otherwise fall back to context contacts
-  const activeContacts = localContacts.length > 0 ? localContacts : contacts;
 
-  // Initialize client-side and set up listeners
-  useEffect(() => {
-    setIsClient(true);
-    
-    const handleVisibilityChange = () => {
-      if (!document.hidden && user) {
-        console.log('🔔 MAP PAGE: Page became visible - checking for updates');
-        const contactsKey = `contactChronicle_contacts_${user.id}`;
-        const stored = localStorage.getItem(contactsKey);
-        if (stored) {
-          try {
-            const storedContacts: Contact[] = JSON.parse(stored);
-            const storedWithNotes = storedContacts.filter(c => c.notes && c.notes.trim());
-            
-            // Create comprehensive hash including full notes content
-            const storedHash = storedContacts.map(c => {
-              const notesContent = c.notes || '';
-              return `${c.id}:${c.firstName}:${c.lastName}:${notesContent}:${c.dateAdded || ''}`;
-            }).join('|');
-            
-            const currentHash = activeContacts.map(c => {
-              const notesContent = c.notes || '';
-              return `${c.id}:${c.firstName}:${c.lastName}:${notesContent}:${c.dateAdded || ''}`;
-            }).join('|');
-            
-            console.log(`  📊 Stored contacts with notes: ${storedWithNotes.length}`);
-            console.log(`  📊 Current activeContacts with notes: ${activeContacts.filter(c => c.notes && c.notes.trim()).length}`);
-            console.log(`  📊 Hash comparison - Stored length: ${storedHash.length}, Current length: ${currentHash.length}`);
-            
-            if (storedHash !== currentHash) {
-              console.log('🔔 MAP PAGE: Visibility change detected localStorage differs - forcing update!');
-              console.log(`  📊 Hash mismatch detected - stored and current contacts differ`);
-              setMapKey(prev => prev + 1);
-            } else {
-              console.log('  ✅ Hashes match - no update needed');
-            }
-          } catch (error) {
-            console.error('Error checking visibility:', error);
-          }
-        }
-      }
-    };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    // Initial load check - force update if notes exist
-    const initialCheckTimeout = setTimeout(() => {
-      if (user) {
-        console.log('🔔 MAP PAGE: Initial load check - verifying contacts data');
-        const contactsKey = `contactChronicle_contacts_${user.id}`;
-        const stored = localStorage.getItem(contactsKey);
-        if (stored) {
-          try {
-            const storedContacts: Contact[] = JSON.parse(stored);
-            const storedWithNotes = storedContacts.filter(c => c.notes && c.notes.trim());
-            console.log(`  📝 Found ${storedWithNotes.length} contacts with notes in localStorage`);
-            if (storedWithNotes.length > 0) {
-              console.log('  📝 Sample notes:', storedWithNotes.slice(0, 3).map(c => ({
-                name: `${c.firstName} ${c.lastName}`,
-                notesLength: c.notes?.length || 0,
-                notes: c.notes?.substring(0, 100)
-              })));
-              // Force update to ensure map shows all locations from stored data
-              setMapKey(prev => {
-                const newKey = prev + 1;
-                console.log(`  🗺️ Initial check: Map key updated to ${newKey} to load locations from localStorage`);
-                return newKey;
-              });
-            }
-          } catch (error) {
-            console.error('Error in initial check:', error);
-          }
-        }
-      }
-    }, 500);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      clearTimeout(initialCheckTimeout);
-    };
-  }, [user, contacts]);
-
-  // Listen for contacts updates
-  useEffect(() => {
-    if (!user) return;
-    
-    const contactsKey = `contactChronicle_contacts_${user.id}`;
-    
-    const handleContactsUpdated = (e: CustomEvent) => {
-      console.log('🔔 MAP PAGE: contactsUpdated event received!');
-      console.log(`  📊 Contact ID updated: ${e.detail?.contactId}`);
-      setMapKey(prev => prev + 1);
-    };
-    
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === contactsKey && e.newValue) {
-        console.log('🔔 MAP PAGE: localStorage changed (storage event)');
-        setMapKey(prev => prev + 1);
-      }
-    };
-    
-    // Poll localStorage every 500ms
-    const pollInterval = setInterval(() => {
+    const syncContacts = () => {
+      const contactsKey = `contactChronicle_contacts_${user.id}`;
       const stored = localStorage.getItem(contactsKey);
-      if (stored && stored !== lastStorageCheckRef.current) {
+
+      if (stored) {
         try {
           const storedContacts: Contact[] = JSON.parse(stored);
-          const storedHash = storedContacts.map(c => 
-            `${c.id}:${c.firstName}:${c.lastName}:${c.notes || ''}`
-          ).join('|');
-          
-          const currentHash = contacts.map(c => 
-            `${c.id}:${c.firstName}:${c.lastName}:${c.notes || ''}`
-          ).join('|');
-          
-          if (storedHash !== currentHash) {
-            console.log('🔔 MAP PAGE: Poll detected contacts change in localStorage!');
-            lastStorageCheckRef.current = stored;
+          const storedHash = JSON.stringify(
+            storedContacts.map(c => ({
+              id: c.id,
+              notes: c.notes || '',
+              firstName: c.firstName,
+              lastName: c.lastName
+            }))
+          );
+
+          // Only update if data changed
+          if (storedHash !== lastStorageCheckRef.current) {
+            console.log('🔄 MAP: Contacts synced from localStorage');
+            console.log(`  📊 Total: ${storedContacts.length}`);
+            const withNotes = storedContacts.filter(c => c.notes && c.notes.trim());
+            console.log(`  📝 With notes: ${withNotes.length}`);
+            
+            setLocalContacts([...storedContacts]);
+            lastStorageCheckRef.current = storedHash;
+            
+            // Force map recalculation
             setMapKey(prev => prev + 1);
           }
         } catch (error) {
-          // Ignore parse errors
+          console.error('❌ MAP: Error syncing contacts:', error);
         }
       }
-    }, 500);
-    
-    window.addEventListener('contactsUpdated', handleContactsUpdated as EventListener);
-    window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('contactsUpdated', handleContactsUpdated as EventListener);
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(pollInterval);
     };
-  }, [user, contacts]);
 
-  // Track contacts hash changes - CRITICAL: Use activeContacts (localStorage + context)
-  const contactsHash = useMemo(() => {
-    // Create hash that includes ALL contact data, especially notes
-    // Use activeContacts which combines localStorage and context
-    const hash = activeContacts.map(c => {
-      const notesContent = c.notes || '';
-      return `${c.id}:${c.firstName}:${c.lastName}:${notesContent}:${c.dateAdded || ''}`;
-    }).join('|');
-    
-    const hasChanged = hash !== previousContactsHashRef.current;
-    if (hasChanged) {
-      console.log('🔄 MAP PAGE: contactsHash CHANGED - contacts data updated!');
-      console.log(`  📊 Total contacts: ${activeContacts.length}`);
-      const contactsWithNotes = activeContacts.filter(c => c.notes && c.notes.trim());
-      console.log(`  📝 Contacts with notes: ${contactsWithNotes.length}`);
-      
-      // Log sample of notes to verify they're in the hash
-      if (contactsWithNotes.length > 0) {
-        console.log(`  📝 Sample notes (first 3):`, contactsWithNotes.slice(0, 3).map(c => ({
-          name: `${c.firstName} ${c.lastName}`,
-          notesLength: c.notes?.length || 0,
-          notesPreview: c.notes?.substring(0, 100)
-        })));
+    // Initial sync
+    syncContacts();
+
+    // Poll localStorage every 250ms for fast updates
+    const pollInterval = setInterval(syncContacts, 250);
+
+    // Listen for custom events
+    const handleContactsUpdated = () => {
+      console.log('🔔 MAP: contactsUpdated event received');
+      syncContacts();
+    };
+
+    // Listen for storage events (cross-tab)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === `contactChronicle_contacts_${user.id}` && e.newValue) {
+        console.log('🔔 MAP: Storage event detected');
+        syncContacts();
       }
-      
-      console.log(`  🔑 Hash changed! Previous hash length: ${previousContactsHashRef.current.length}, New hash length: ${hash.length}`);
-      previousContactsHashRef.current = hash;
-      forceUpdateRef.current += 1;
-    } else {
-      console.log('🔄 MAP PAGE: contactsHash unchanged');
-    }
-    
-    return hash;
-  }, [activeContacts]);
+    };
 
-  const timelineHash = useMemo(() => {
-    return JSON.stringify(timelineEvents.map(e => ({
-      id: e.id,
-      geographicEvent: e.geographicEvent,
-      monthYear: e.monthYear
-    })));
-  }, [timelineEvents]);
+    // Listen for visibility changes
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('🔔 MAP: Page visible - checking for updates');
+        syncContacts();
+      }
+    };
 
-  // Force map update on data changes - CRITICAL: This triggers map recalculation
-  useEffect(() => {
-    console.log('🔄 MAP PAGE: Data change detected - forcing map recalculation!');
-    console.log(`  📊 Contacts hash length: ${contactsHash.length}`);
-    console.log(`  📊 Contacts hash preview: ${contactsHash.substring(0, 100)}...`);
-    console.log(`  📊 Timeline hash: ${timelineHash.substring(0, 50)}...`);
-    console.log(`  📊 Force update counter: ${forceUpdateRef.current}`);
-    console.log(`  📊 Active contacts length: ${activeContacts.length}`);
-    console.log(`  📊 Active contacts array reference:`, activeContacts);
-    const contactsWithNotes = activeContacts.filter(c => c.notes && c.notes.trim());
-    console.log(`  📊 Contacts with notes: ${contactsWithNotes.length}`);
-    
-    if (contactsWithNotes.length > 0) {
-      console.log(`  📝 Sample contacts with notes:`, contactsWithNotes.slice(0, 3).map(c => ({
-        name: `${c.firstName} ${c.lastName}`,
-        notesLength: c.notes?.length || 0,
-        notesPreview: c.notes?.substring(0, 100)
-      })));
+    window.addEventListener('contactsUpdated', handleContactsUpdated);
+    window.addEventListener('storage', handleStorageChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener('contactsUpdated', handleContactsUpdated);
+      window.removeEventListener('storage', handleStorageChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+    };
+  }, [user]);
+
+  // Use synced contacts or fallback to context
+  const activeContacts = useMemo(() => {
+    return localContacts.length > 0 ? localContacts : contacts;
+  }, [localContacts, contacts]);
+
+  // ============================================================================
+  // UTILITY FUNCTIONS: Coordinate lookup and validation
+  // ============================================================================
+  const getCityCoordinates = useCallback((cityName: string): { lat: number; lng: number; displayName: string } | null => {
+    if (!cityName?.trim()) return null;
+
+    const normalized = cityName.toLowerCase().trim();
+
+    // Exact match
+    if (cityCoordinates[normalized]) {
+      const coords = cityCoordinates[normalized];
+      // Validate coordinates
+      if (coords.lat < -90 || coords.lat > 90 || coords.lng < -180 || coords.lng > 180) {
+        console.error(`❌ Invalid coordinates for "${cityName}": [${coords.lat}, ${coords.lng}]`);
+        return null;
+      }
+      return coords;
     }
-    
-    // Force map remount to recalculate all locations
-    setMapKey(prev => {
-      const newKey = prev + 1;
-      console.log(`  🗺️ Map key updated from ${prev} to ${newKey} - map will remount and recalculate ALL markers`);
-      return newKey;
+
+    // Partial match
+    for (const [key, coords] of Object.entries(cityCoordinates)) {
+      if (normalized.includes(key) || key.includes(normalized)) {
+        if (coords.lat >= -90 && coords.lat <= 90 && coords.lng >= -180 && coords.lng <= 180) {
+          return coords;
+        }
+      }
+    }
+
+    // Track missing city
+    setMissingCities(prev => {
+      if (!prev.has(normalized)) {
+        console.warn(`⚠️ CITY NOT IN DATABASE: "${cityName}"`);
+        return new Set(prev).add(normalized);
+      }
+      return prev;
     });
-  }, [contactsHash, timelineHash, contacts]);
 
-  // Set up Leaflet icons
+    return null;
+  }, []);
+
+  const validateCoordinates = useCallback((coords: { lat: number; lng: number }): boolean => {
+    if (isNaN(coords.lat) || isNaN(coords.lng)) {
+      console.error(`❌ Coordinates are NaN: [${coords.lat}, ${coords.lng}]`);
+      return false;
+    }
+    if (coords.lat < -90 || coords.lat > 90) {
+      console.error(`❌ Latitude out of range: ${coords.lat} (must be -90 to 90)`);
+      return false;
+    }
+    if (coords.lng < -180 || coords.lng > 180) {
+      console.error(`❌ Longitude out of range: ${coords.lng} (must be -180 to 180)`);
+      return false;
+    }
+    return true;
+  }, []);
+
+  // ============================================================================
+  // LOCATION EXTRACTION: Extract locations from timeline and notes
+  // ============================================================================
+  const extractLocationFromTimeline = useCallback((text: string): string | null => {
+    if (!text?.trim()) return null;
+    const patterns = [
+      /(?:moved\s+to|lived\s+in|located\s+in)\s+([^,]+?)(?:,|$)/i,
+      /(?:in|at)\s+([^,]+?)(?:,|\s*$)/i,
+    ];
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match?.[1]) {
+        const location = match[1].trim();
+        if (location.length > 2) return location;
+      }
+    }
+    return text.trim();
+  }, []);
+
+  const extractLocationsFromNotes = useCallback((contact: Contact): string[] => {
+    if (!contact.notes?.trim()) return [];
+
+    const locations: string[] = [];
+    const noteText = contact.notes;
+    const noteTextLower = noteText.toLowerCase();
+
+    // Direct city name matching
+    for (const [cityKey, coords] of Object.entries(cityCoordinates)) {
+      const cityKeyLower = cityKey.toLowerCase();
+      
+      // Skip very short keys
+      if (cityKey.length < 3) continue;
+
+      // Check for exact match or word boundary match
+      if (noteTextLower.includes(cityKeyLower)) {
+        const regex = new RegExp(`\\b${cityKeyLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+        if (regex.test(noteText) && !locations.some(l => l.toLowerCase() === cityKeyLower)) {
+          locations.push(cityKey);
+          console.log(`  ✅ Found "${cityKey}" in notes for ${contact.firstName} ${contact.lastName}`);
+        }
+      }
+    }
+
+    // Pattern matching for "City, State" or "City State"
+    const patterns = [
+      /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*,\s*([A-Z][a-z]+|[A-Z]{2})\b/g,
+      /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+([A-Z]{2})\b/g,
+      /\b(?:in|at|from|to)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g,
+    ];
+
+    for (const pattern of patterns) {
+      let match;
+      pattern.lastIndex = 0;
+      while ((match = pattern.exec(noteText)) !== null) {
+        if (match[1]) {
+          const cityToCheck = match[1].trim();
+          const fullName = match[2] ? `${cityToCheck}, ${match[2].trim()}` : cityToCheck;
+          
+          const coords = getCityCoordinates(fullName) || getCityCoordinates(cityToCheck);
+          if (coords && !locations.some(l => l.toLowerCase() === fullName.toLowerCase())) {
+            locations.push(fullName);
+            console.log(`  ✅ Pattern matched: "${fullName}"`);
+          }
+        }
+      }
+    }
+
+    return locations;
+  }, [getCityCoordinates]);
+
+  const parseDate = useCallback((dateStr: string): Date | null => {
+    if (!dateStr) return null;
+    if (dateStr.includes('/')) {
+      const parts = dateStr.split('/');
+      if (parts.length === 2) {
+        const month = parseInt(parts[0]);
+        const year = parseInt(parts[1]);
+        if (month >= 1 && month <= 12 && year > 2000) {
+          return new Date(year, month - 1);
+        }
+      }
+    }
+    return null;
+  }, []);
+
+  // ============================================================================
+  // LOCATION MARKERS: Calculate all markers from timeline and notes
+  // ============================================================================
+  const locationMarkers = useMemo(() => {
+    console.log('🗺️ ===== RECALCULATING ALL LOCATION MARKERS =====');
+    console.log(`  📊 Active contacts: ${activeContacts.length}`);
+    console.log(`  📊 Timeline events: ${timelineEvents.length}`);
+
+    const markersMap = new Map<string, LocationMarker>();
+    const contactsWithNotes = activeContacts.filter(c => c.notes && c.notes.trim());
+    console.log(`  📝 Contacts with notes: ${contactsWithNotes.length}`);
+
+    // Process timeline events
+    const geoEvents = timelineEvents
+      .filter(e => e.geographicEvent?.trim())
+      .map(e => ({ ...e, date: parseDate(e.monthYear) }))
+      .filter(e => e.date)
+      .sort((a, b) => a.date!.getTime() - b.date!.getTime());
+
+    console.log(`  📍 Geographic events: ${geoEvents.length}`);
+
+    geoEvents.forEach((event, idx) => {
+      const locationName = extractLocationFromTimeline(event.geographicEvent!);
+      if (!locationName) return;
+
+      const cityData = getCityCoordinates(locationName);
+      if (!cityData || !validateCoordinates(cityData)) {
+        console.warn(`  ⚠️ No valid coordinates for timeline location: "${locationName}"`);
+        return;
+      }
+
+      const coordKey = `${cityData.lat.toFixed(4)}_${cityData.lng.toFixed(4)}`;
+      const endDate = idx < geoEvents.length - 1 ? geoEvents[idx + 1].date : null;
+
+      if (!markersMap.has(coordKey)) {
+        markersMap.set(coordKey, {
+          id: `timeline-${event.id}`,
+          city: locationName,
+          displayName: cityData.displayName,
+          coordinates: { lat: cityData.lat, lng: cityData.lng },
+          contacts: [],
+          source: 'timeline',
+          startDate: event.date!,
+          endDate,
+        });
+        console.log(`  ✅ Added timeline marker: ${cityData.displayName} at [${cityData.lat}, ${cityData.lng}]`);
+      }
+    });
+
+    // Process contact notes
+    contactsWithNotes.forEach(contact => {
+      const locations = extractLocationsFromNotes(contact);
+      
+      locations.forEach(locationName => {
+        const cityData = getCityCoordinates(locationName);
+        if (!cityData || !validateCoordinates(cityData)) {
+          console.warn(`  ⚠️ No valid coordinates for note location: "${locationName}"`);
+          return;
+        }
+
+        const coordKey = `${cityData.lat.toFixed(4)}_${cityData.lng.toFixed(4)}`;
+        
+        if (!markersMap.has(coordKey)) {
+          markersMap.set(coordKey, {
+            id: `notes-${contact.id}-${Date.now()}`,
+            city: locationName,
+            displayName: cityData.displayName,
+            coordinates: { lat: cityData.lat, lng: cityData.lng },
+            contacts: [],
+            source: 'notes',
+          });
+          console.log(`  ✅ Added notes marker: ${cityData.displayName} at [${cityData.lat}, ${cityData.lng}]`);
+        }
+
+        const marker = markersMap.get(coordKey)!;
+        if (!marker.contacts.find(c => c.id === contact.id)) {
+          marker.contacts = [...marker.contacts, contact];
+        }
+      });
+    });
+
+    const markersArray = Array.from(markersMap.values());
+    console.log(`✅ Total markers calculated: ${markersArray.length}`);
+    markersArray.forEach((m, idx) => {
+      console.log(`  [${idx + 1}] ${m.displayName} - ${m.contacts.length} contacts [${m.source}]`);
+    });
+    console.log('🗺️ ===========================================');
+
+    return markersArray;
+  }, [activeContacts, timelineEvents, extractLocationFromTimeline, extractLocationsFromNotes, getCityCoordinates, validateCoordinates, parseDate]);
+
+  // ============================================================================
+  // MAP CALCULATIONS: Center and bounds
+  // ============================================================================
+  const mapCenter = useMemo(() => {
+    if (locationMarkers.length === 0) {
+      return { lat: 39.8283, lng: -98.5795 }; // Center of USA
+    }
+    const avgLat = locationMarkers.reduce((sum, m) => sum + m.coordinates.lat, 0) / locationMarkers.length;
+    const avgLng = locationMarkers.reduce((sum, m) => sum + m.coordinates.lng, 0) / locationMarkers.length;
+    return { lat: avgLat, lng: avgLng };
+  }, [locationMarkers]);
+
+  const mapBounds = useMemo(() => {
+    if (locationMarkers.length === 0) return null;
+
+    const lats = locationMarkers.map(m => m.coordinates.lat);
+    const lngs = locationMarkers.map(m => m.coordinates.lng);
+
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+    const minLng = Math.min(...lngs);
+    const maxLng = Math.max(...lngs);
+
+    const latSpan = maxLat - minLat;
+    const lngSpan = maxLng - minLng;
+    const isWorldwide = lngSpan > 50 || latSpan > 50;
+
+    const padding = isWorldwide ? 5 : 2;
+    return [
+      [minLat - padding, minLng - padding],
+      [maxLat + padding, maxLng + padding]
+    ] as [[number, number], [number, number]];
+  }, [locationMarkers]);
+
+  // ============================================================================
+  // FORCE MAP UPDATE: When data changes
+  // ============================================================================
+  useEffect(() => {
+    const contactsHash = JSON.stringify(
+      activeContacts.map(c => ({ id: c.id, notes: c.notes || '' }))
+    );
+
+    if (contactsHash !== lastContactsHashRef.current) {
+      console.log('🔄 MAP: Contacts data changed - forcing map update');
+      lastContactsHashRef.current = contactsHash;
+      setMapKey(prev => prev + 1);
+    }
+  }, [activeContacts, locationMarkers.length]);
+
+  // ============================================================================
+  // LEAFLET SETUP
+  // ============================================================================
   useEffect(() => {
     if (typeof window !== 'undefined' && isClient) {
       try {
@@ -411,620 +522,44 @@ export default function MapPage() {
     }
   }, [isClient]);
 
-  // Extract location from geographic event text
-  const extractLocation = useCallback((text: string): string | null => {
-    if (!text) return null;
-    const trimmed = text.trim();
-    const patterns = [
-      /(?:moved\s+to|lived\s+in|located\s+in|resided\s+in|stayed\s+in)\s+([^,]+?)(?:,|$)/i,
-      /(?:in|at)\s+([^,]+?)(?:,|\s*$)/i,
-      /^([^,]+?)(?:\s*,|\s*$)/,
-    ];
-    
-    for (const pattern of patterns) {
-      const match = trimmed.match(pattern);
-      if (match && match[1]) {
-        const location = match[1].trim();
-        if (location.length > 2 && !location.match(/^(the|a|an)\s/i)) {
-          return location;
-        }
-      }
-    }
-    return trimmed;
-  }, []);
-
-  // Get coordinates for a city with comprehensive matching
-  const getCityCoordinates = useCallback((cityName: string): { lat: number; lng: number } | null => {
-    if (!cityName || !cityName.trim()) return null;
-    
-    const normalized = cityName.toLowerCase().trim();
-    
-    // Exact match
-    if (cityCoordinates[normalized]) {
-      return cityCoordinates[normalized];
-    }
-    
-    // Try partial match
-    for (const [key, coords] of Object.entries(cityCoordinates)) {
-      const keyLower = key.toLowerCase();
-      if (normalized === keyLower) return coords;
-      if (normalized.includes(keyLower) || keyLower.includes(normalized)) return coords;
-      
-      const normalizedWords = normalized.split(/\s+/).filter(w => w.length >= 3);
-      const keyWords = keyLower.split(/\s+/).filter(w => w.length >= 3);
-      if (normalizedWords.length > 0 && keyWords.length > 0) {
-        const matchingWords = normalizedWords.filter(w => keyWords.includes(w));
-        if (matchingWords.length === normalizedWords.length || matchingWords.length === keyWords.length) {
-          return coords;
-        }
-      }
-    }
-    
-    // Track missing cities
-    setMissingCities(prev => {
-      const next = new Set(prev);
-      if (!next.has(normalized)) {
-        next.add(normalized);
-        console.warn(`⚠️ CITY NOT IN DATABASE: "${cityName}" (normalized: "${normalized}")`);
-        console.warn(`   Please add this city to cityCoordinates in app/map/page.tsx`);
-      }
-      return next;
-    });
-    
-    return null;
-  }, []);
-
-  // Parse date from MM/YYYY format
-  const parseDate = useCallback((dateStr: string): Date | null => {
-    if (!dateStr) return null;
-    if (dateStr.includes('/')) {
-      const parts = dateStr.split('/');
-      if (parts.length === 2) {
-        const month = parseInt(parts[0]);
-        const year = parseInt(parts[1]);
-        if (month >= 1 && month <= 12 && year > 2000) {
-          return new Date(year, month - 1);
-        }
-      }
-    }
-    return null;
-  }, []);
-
-  // Extract locations from contact notes - COMPREHENSIVE VERSION
-  const extractLocationsFromNotes = useCallback((contact: Contact): string[] => {
-    if (!contact.notes || !contact.notes.trim()) {
-      console.log(`  ⚠️ Contact "${contact.firstName} ${contact.lastName}" has no notes or empty notes`);
-      return [];
-    }
-    
-    const locations: string[] = [];
-    const noteText = contact.notes;
-    const noteTextLower = noteText.toLowerCase();
-    
-    console.log(`  🔍 Extracting locations from "${contact.firstName} ${contact.lastName}" notes:`);
-    console.log(`     Full notes: "${noteText}"`);
-    console.log(`     Notes length: ${noteText.length}`);
-    
-    // Match known cities
-    for (const [cityKey, coords] of Object.entries(cityCoordinates)) {
-      const cityKeyLower = cityKey.toLowerCase();
-      const cityParts = cityKey.split(',');
-      const cityName = cityParts[0].trim();
-      const cityNameLower = cityName.toLowerCase();
-      
-      if (cityName.length < 2 || (cityName.length === 2 && !cityKey.includes(','))) continue;
-      
-      if (noteTextLower.includes(cityKeyLower)) {
-        if (!locations.some(loc => loc.toLowerCase() === cityKeyLower)) {
-          locations.push(cityKey);
-          console.log(`    ✅ Direct match: "${cityKey}"`);
-          continue;
-        }
-      }
-      
-      const cityWords = cityNameLower.split(/\s+/).filter(w => w.length >= 3);
-      let allWordsFound = false;
-      
-      if (cityWords.length > 1) {
-        const allWordsPresent = cityWords.every(word => noteTextLower.includes(word));
-        if (allWordsPresent) {
-          const firstWordIndex = noteTextLower.indexOf(cityWords[0]);
-          if (firstWordIndex !== -1) {
-            const relevantSection = noteTextLower.substring(
-              Math.max(0, firstWordIndex - 20), 
-              firstWordIndex + cityName.length + 20
-            );
-            if (relevantSection.includes(cityNameLower)) {
-              allWordsFound = true;
-            } else {
-              const cityPattern = new RegExp(cityNameLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-              if (cityPattern.test(noteText)) {
-                allWordsFound = true;
-              }
-            }
-          }
-        }
-      } else {
-        const escapedCityName = cityNameLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const wordBoundaryPattern = new RegExp(`\\b${escapedCityName}\\b`, 'i');
-        if (wordBoundaryPattern.test(noteText)) {
-          allWordsFound = true;
-        } else if (cityName.length >= 4) {
-          const withContextPattern = new RegExp(`${escapedCityName}\\s*[,]?\\s*([A-Z]{2}|[A-Z][a-z]+)`, 'i');
-          if (withContextPattern.test(noteText)) {
-            allWordsFound = true;
-          }
-        }
-      }
-      
-      if (allWordsFound) {
-        const alreadyFound = locations.some(loc => {
-          const locLower = loc.toLowerCase();
-          return locLower === cityKeyLower || locLower === cityNameLower;
-        });
-        
-        if (!alreadyFound) {
-          locations.push(cityKey);
-          console.log(`    ✅ Pattern match: "${cityKey}"`);
-        }
-      }
-    }
-    
-    // Regex patterns for location formats
-    const patterns = [
-      /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*,\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*|[A-Z]{2})\b/g,
-      /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g,
-      /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),?\s+([A-Z]{2})\b/g,
-      /\b(?:in|at|from|to|near|by)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g,
-      /\b([A-Z][a-z]{3,})\b/g,
-    ];
-    
-    const skipWords = new Set([
-      'The', 'This', 'That', 'These', 'Those', 'There', 'Here', 'When', 'Where', 'What', 
-      'Who', 'How', 'Why', 'First', 'Last', 'Next', 'Previous', 'Met', 'Meet', 'Worked', 
-      'Work', 'Lived', 'Live', 'Moved', 'Move', 'Born', 'Grew', 'Studied', 'Study', 
-      'Graduated', 'Attended', 'Joined', 'Left', 'Started', 'Ended', 'During', 'After', 
-      'Before', 'Since', 'Until', 'With', 'Without', 'From', 'To', 'In', 'At', 'On', 
-      'By', 'For', 'And', 'Or', 'But', 'Not', 'All', 'Some', 'Many', 'Most', 'Each', 
-      'Every', 'Both', 'Either', 'Neither', 'Year', 'Years', 'Month', 'Months', 'Week', 
-      'Weeks', 'Day', 'Days', 'Today', 'Yesterday', 'Tomorrow', 'January', 'February', 
-      'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 
-      'November', 'December'
-    ]);
-    
-    for (const pattern of patterns) {
-      let match;
-      pattern.lastIndex = 0;
-      
-      while ((match = pattern.exec(noteText)) !== null) {
-        if (match[1]) {
-          let cityToCheck = match[1].trim();
-          if (skipWords.has(cityToCheck)) continue;
-          
-          if (match[2]) {
-            const secondPart = match[2].trim();
-            if (secondPart.length === 2 && /^[A-Z]{2}$/.test(secondPart)) {
-              const variations = [
-                `${cityToCheck}, ${secondPart}`,
-                `${cityToCheck} ${secondPart}`,
-                cityToCheck
-              ];
-              
-              for (const variant of variations) {
-                const coords = getCityCoordinates(variant);
-                if (coords && !locations.some(loc => loc.toLowerCase() === variant.toLowerCase())) {
-                  locations.push(variant);
-                  console.log(`    ✅ Pattern matched: "${variant}"`);
-                  break;
-                }
-              }
-            } else {
-              const variations = [
-                `${cityToCheck}, ${secondPart}`,
-                `${cityToCheck} ${secondPart}`,
-                cityToCheck
-              ];
-              
-              for (const variant of variations) {
-                const coords = getCityCoordinates(variant);
-                if (coords && !locations.some(loc => loc.toLowerCase() === variant.toLowerCase())) {
-                  locations.push(variant);
-                  console.log(`    ✅ Pattern matched: "${variant}"`);
-                  break;
-                }
-              }
-            }
-          } else {
-            const coords = getCityCoordinates(cityToCheck);
-            if (coords && !locations.some(loc => loc.toLowerCase() === cityToCheck.toLowerCase())) {
-              locations.push(cityToCheck);
-              console.log(`    ✅ Pattern matched: "${cityToCheck}"`);
-            }
-          }
-        }
-      }
-    }
-    
-    // Validate locations have coordinates
-    const validLocations = locations.filter(loc => {
-      const coords = getCityCoordinates(loc);
-      if (!coords) {
-        console.warn(`    ⚠️ Location "${loc}" was extracted but has no coordinates!`);
-        return false;
-      }
-      return true;
-    });
-    
-    if (validLocations.length > 0) {
-      console.log(`  ✅ Extracted ${validLocations.length} valid location(s) from "${contact.firstName} ${contact.lastName}":`, validLocations);
-    } else {
-      console.log(`  ⚠️ No valid locations extracted from "${contact.firstName} ${contact.lastName}"`);
-    }
-    
-    return validLocations;
-  }, [getCityCoordinates]);
-
-  // Build location periods from timeline
-  const locationPeriodsFromTimeline = useMemo(() => {
-    console.log('🔍 RECALCULATING: locationPeriodsFromTimeline');
-    const periods: LocationPeriod[] = [];
-    const geoEvents = timelineEvents
-      .filter(event => event.geographicEvent && event.geographicEvent.trim())
-      .map(event => ({
-        ...event,
-        date: parseDate(event.monthYear),
-      }))
-      .filter(event => event.date)
-      .sort((a, b) => a.date!.getTime() - b.date!.getTime());
-    
-    console.log(`  - Geographic events found: ${geoEvents.length}`);
-    
-    for (let i = 0; i < geoEvents.length; i++) {
-      const event = geoEvents[i];
-      const locationName = extractLocation(event.geographicEvent!);
-      if (!locationName) continue;
-      
-      const coordinates = getCityCoordinates(locationName);
-      if (!coordinates) {
-        console.warn(`  ⚠️ No coordinates found for: "${locationName}"`);
-        continue;
-      }
-      
-      const startDate = event.date!;
-      const endDate = i < geoEvents.length - 1 ? geoEvents[i + 1].date : null;
-      
-      periods.push({
-        city: locationName,
-        startDate,
-        endDate,
-        coordinates,
-        contacts: [],
-        source: 'timeline',
-      });
-      
-      console.log(`  ✅ Added timeline location: ${locationName} at [${coordinates.lat}, ${coordinates.lng}]`);
-    }
-    
-    const periodsWithContacts = periods.map(period => {
-      const matchedContacts = activeContacts.filter(contact => {
-        if (!contact.dateAdded) return false;
-        const contactDate = parseDate(contact.dateAdded);
-        if (!contactDate) return false;
-        const isAfterStart = contactDate >= period.startDate;
-        const isBeforeEnd = period.endDate ? contactDate < period.endDate : true;
-        return isAfterStart && isBeforeEnd;
-      });
-      
-      return {
-        ...period,
-        contacts: matchedContacts,
-      };
-    });
-    
-    console.log(`  ✅ Created ${periodsWithContacts.length} timeline location periods`);
-    return [...periodsWithContacts];
-  }, [timelineEvents, activeContacts, extractLocation, getCityCoordinates, parseDate]);
-
-  // Build location markers from notes - FULLY REACTIVE
-  // CRITICAL: Use activeContacts instead of contacts to ensure latest data
-  const locationMarkersFromNotes = useMemo(() => {
-    console.log('🔍 RECALCULATING: locationMarkersFromNotes');
-    console.log(`  - Active contacts array reference:`, activeContacts);
-    console.log(`  - Active contacts array length: ${activeContacts.length}`);
-    const contactsWithNotes = activeContacts.filter(c => c.notes && c.notes.trim());
-    console.log(`  - Contacts with notes: ${contactsWithNotes.length}`);
-    
-    // Log all contacts with notes for debugging
-    if (contactsWithNotes.length > 0) {
-      console.log(`  - All contacts with notes:`, contactsWithNotes.map(c => ({
-        id: c.id,
-        name: `${c.firstName} ${c.lastName}`,
-        notesLength: c.notes?.length || 0,
-        notesPreview: c.notes?.substring(0, 150)
-      })));
-    }
-    
-    const locationMap = new Map<string, { coordinates: { lat: number; lng: number }; contacts: Contact[]; displayName: string }>();
-    let processedCount = 0;
-    let locationsFoundCount = 0;
-    
-    activeContacts.forEach(contact => {
-      if (!contact.notes || !contact.notes.trim()) return;
-      
-      processedCount++;
-      const locations = extractLocationsFromNotes(contact);
-      
-      if (locations.length > 0) {
-        locationsFoundCount += locations.length;
-        
-        locations.forEach(locationName => {
-          const coordinates = getCityCoordinates(locationName);
-          if (!coordinates) {
-            console.warn(`  ⚠️ No coordinates for: "${locationName}" in ${contact.firstName} ${contact.lastName}`);
-            return;
-          }
-          
-          // Validate coordinates before adding
-          if (isNaN(coordinates.lat) || isNaN(coordinates.lng) ||
-              coordinates.lat < -90 || coordinates.lat > 90 ||
-              coordinates.lng < -180 || coordinates.lng > 180) {
-            console.error(`  ❌ Invalid coordinates for ${locationName}: [${coordinates.lat}, ${coordinates.lng}]`);
-            return;
-          }
-          
-          const coordKey = `${coordinates.lat.toFixed(4)}_${coordinates.lng.toFixed(4)}`;
-          
-          if (!locationMap.has(coordKey)) {
-            locationMap.set(coordKey, {
-              coordinates,
-              contacts: [],
-              displayName: locationName,
-            });
-            console.log(`  ✅ New location marker: ${locationName} at [${coordinates.lat}, ${coordinates.lng}]`);
-          }
-          
-          const locationData = locationMap.get(coordKey)!;
-          if (!locationData.contacts.find(c => c.id === contact.id)) {
-            locationData.contacts = [...locationData.contacts, contact];
-          }
-        });
-      }
-    });
-    
-    console.log(`  📊 Processed ${processedCount} contacts with notes, found ${locationsFoundCount} location mentions`);
-    
-    const periods: LocationPeriod[] = [];
-    locationMap.forEach((data, coordKey) => {
-      const timelinePeriod = locationPeriodsFromTimeline.find(
-        p => Math.abs(p.coordinates.lat - data.coordinates.lat) < 0.01 && 
-             Math.abs(p.coordinates.lng - data.coordinates.lng) < 0.01
-      );
-      
-      periods.push({
-        city: data.displayName,
-        startDate: timelinePeriod?.startDate || new Date(2000, 0, 1),
-        endDate: timelinePeriod?.endDate || null,
-        coordinates: { ...data.coordinates },
-        contacts: [...data.contacts],
-        source: 'notes',
-      });
-    });
-    
-    console.log(`  ✅ Created ${periods.length} location markers from notes`);
-    if (periods.length > 0) {
-      console.log(`  📍 Locations:`, periods.map(p => `${p.city} [${p.coordinates.lat}, ${p.coordinates.lng}] - ${p.contacts.length} contacts`));
-    }
-    
-    // CRITICAL: Return new array reference to ensure React detects changes
-    const result = [...periods];
-    console.log(`  ✅ RETURNING ${result.length} location markers from notes (new array reference)`);
-    return result;
-  }, [activeContacts, contactsHash, extractLocationsFromNotes, getCityCoordinates, locationPeriodsFromTimeline]);
-
-  // Combine timeline and notes locations
-  const locationPeriods = useMemo(() => {
-    console.log('🔍 RECALCULATING: locationPeriods (combining timeline and notes)');
-    const combined: LocationPeriod[] = [];
-    const coordinateMap = new Map<string, LocationPeriod>();
-    
-    const getCoordKey = (lat: number, lng: number) => `${lat.toFixed(4)}_${lng.toFixed(4)}`;
-    
-    locationPeriodsFromTimeline.forEach(timelineLoc => {
-      const coordKey = getCoordKey(timelineLoc.coordinates.lat, timelineLoc.coordinates.lng);
-      const existing = coordinateMap.get(coordKey);
-      
-      if (existing) {
-        const mergedContacts = [...existing.contacts];
-        timelineLoc.contacts.forEach(contact => {
-          if (!mergedContacts.find(c => c.id === contact.id)) {
-            mergedContacts.push(contact);
-          }
-        });
-        
-        const updated: LocationPeriod = {
-          ...existing,
-          contacts: mergedContacts,
-          source: timelineLoc.source === 'timeline' ? 'timeline' : existing.source,
-          city: timelineLoc.source === 'timeline' ? timelineLoc.city : existing.city,
-        };
-        
-        coordinateMap.set(coordKey, updated);
-        const index = combined.findIndex(loc => getCoordKey(loc.coordinates.lat, loc.coordinates.lng) === coordKey);
-        if (index !== -1) {
-          combined[index] = updated;
-        }
-      } else {
-        const newLoc: LocationPeriod = {
-          ...timelineLoc,
-          contacts: [...timelineLoc.contacts],
-        };
-        combined.push(newLoc);
-        coordinateMap.set(coordKey, newLoc);
-      }
-    });
-    
-    locationMarkersFromNotes.forEach(notesLocation => {
-      const coordKey = getCoordKey(notesLocation.coordinates.lat, notesLocation.coordinates.lng);
-      const existing = coordinateMap.get(coordKey);
-      
-      if (existing) {
-        const mergedContacts = [...existing.contacts];
-        notesLocation.contacts.forEach(contact => {
-          if (!mergedContacts.find(c => c.id === contact.id)) {
-            mergedContacts.push(contact);
-          }
-        });
-        
-        const updated: LocationPeriod = {
-          ...existing,
-          contacts: mergedContacts,
-        };
-        
-        coordinateMap.set(coordKey, updated);
-        const index = combined.findIndex(loc => getCoordKey(loc.coordinates.lat, loc.coordinates.lng) === coordKey);
-        if (index !== -1) {
-          combined[index] = updated;
-        }
-      } else {
-        const newLoc: LocationPeriod = {
-          ...notesLocation,
-          contacts: [...notesLocation.contacts],
-        };
-        combined.push(newLoc);
-        coordinateMap.set(coordKey, newLoc);
-      }
-    });
-    
-    console.log(`✅ Combined ${combined.length} unique locations (deduplicated by coordinates)`);
-    console.log(`📍 All locations:`, combined.map(l => `${l.city} [${l.source}] at [${l.coordinates.lat}, ${l.coordinates.lng}] (${l.contacts.length} contacts)`));
-    
-    return [...combined];
-  }, [locationPeriodsFromTimeline, locationMarkersFromNotes]);
-
-  // Calculate map center (must be before useEffect that uses it)
-  const mapCenter = useMemo(() => {
-    if (locationPeriods.length === 0) {
-      return { lat: 39.8283, lng: -98.5795 };
-    }
-    
-    const avgLat = locationPeriods.reduce((sum, p) => sum + p.coordinates.lat, 0) / locationPeriods.length;
-    const avgLng = locationPeriods.reduce((sum, p) => sum + p.coordinates.lng, 0) / locationPeriods.length;
-    
-    return { lat: avgLat, lng: avgLng };
-  }, [locationPeriods]);
-
-  // Calculate bounds (must be before useEffect that uses it)
-  const mapBounds = useMemo(() => {
-    if (locationPeriods.length === 0) return null;
-    
-    const lats = locationPeriods.map(p => p.coordinates.lat);
-    const lngs = locationPeriods.map(p => p.coordinates.lng);
-    
-    const minLat = Math.min(...lats);
-    const maxLat = Math.max(...lats);
-    const minLng = Math.min(...lngs);
-    const maxLng = Math.max(...lngs);
-    
-    const latSpan = maxLat - minLat;
-    const lngSpan = maxLng - minLng;
-    
-    const isWorldwide = lngSpan > 50 || latSpan > 50;
-    const latPadding = Math.max(latSpan * 0.20, isWorldwide ? 5 : 2);
-    const lngPadding = Math.max(lngSpan * 0.20, isWorldwide ? 10 : 2);
-    
-    const bounds = [
-      [minLat - latPadding, minLng - lngPadding],
-      [maxLat + latPadding, maxLng + lngPadding]
-    ] as [[number, number], [number, number]];
-    
-    console.log(`🗺️ Map bounds calculated for ${locationPeriods.length} locations:`, {
-      bounds,
-      isWorldwide,
-      span: { lat: latSpan, lng: lngSpan }
-    });
-    
-    return bounds;
-  }, [locationPeriods]);
-
-  // Log location periods updates
+  // ============================================================================
+  // FIT MAP BOUNDS: Automatically adjust view to show all markers
+  // ============================================================================
   useEffect(() => {
-    console.log(`🗺️ ===== LOCATION PERIODS UPDATED =====`);
-    console.log(`  📍 Total locations: ${locationPeriods.length}`);
-    console.log(`  📍 Map key: ${mapKey}`);
-    
-    if (locationPeriods.length > 0) {
-      locationPeriods.forEach((loc, idx) => {
-        console.log(`  [${idx + 1}] ${loc.city} at [${loc.coordinates.lat}, ${loc.coordinates.lng}] - ${loc.contacts.length} contacts [${loc.source}]`);
-      });
-    } else {
-      console.log(`  ⚠️ No locations found!`);
-      console.log(`  - Active contacts: ${activeContacts.length}`);
-      console.log(`  - Contacts with notes: ${activeContacts.filter(c => c.notes && c.notes.trim()).length}`);
-      console.log(`  - Timeline events: ${timelineEvents.length}`);
-    }
-    console.log(`🗺️ ====================================`);
-  }, [locationPeriods, mapKey, activeContacts, timelineEvents]);
+    if (!mapReady || !locationMarkers.length || !mapBounds) return;
 
-  // Fit map bounds when locations or mapReady changes (must be after mapBounds declaration)
-  useEffect(() => {
-    if (!mapReady || !locationPeriods.length || !mapBounds) return;
-    
-    // Wait for map to be fully initialized
     const fitBoundsTimeout = setTimeout(() => {
       try {
         const L = require('leaflet');
-        if (!L) return;
-        
-        // Get map instance from Leaflet's internal registry
         const maps = (L.Map as any)?._instances;
-        if (!maps || maps.size === 0) {
-          console.warn('⚠️ No map instances found, retrying...');
-          return;
-        }
-        
-        // Get the most recent map instance
+        if (!maps || maps.size === 0) return;
+
         const map = Array.from(maps.values())[maps.size - 1] as any;
-        if (!map) {
-          console.warn('⚠️ Map instance not found');
-          return;
-        }
-        
-        // Verify map has necessary methods and is initialized
-        if (typeof map.fitBounds !== 'function') {
-          console.warn('⚠️ map.fitBounds is not a function');
-          return;
-        }
-        
-        // Check if map container exists (map is rendered)
-        if (!map._container || !map._container._leaflet_id) {
-          console.warn('⚠️ Map container not initialized');
-          return;
-        }
-        
-        // Store map instance
+        if (!map || typeof map.fitBounds !== 'function') return;
+        if (!map._container?._leaflet_id) return;
+
         mapInstanceRef.current = map;
-        
-        // Create bounds and fit
         const leafletBounds = L.latLngBounds(mapBounds[0], mapBounds[1]);
         const isWorldwide = Math.abs(mapBounds[1][1] - mapBounds[0][1]) > 50;
-        const padding = isWorldwide ? [150, 150] : [100, 100];
-        const maxZoomLevel = isWorldwide ? 10 : 12;
-        
-        map.fitBounds(leafletBounds, { 
-          padding, 
-          maxZoom: maxZoomLevel,
-          animate: true 
+
+        map.fitBounds(leafletBounds, {
+          padding: [50, 50],
+          maxZoom: isWorldwide ? 10 : 15,
+          animate: true
         });
-        
-        console.log(`🗺️ Map fitted to bounds for ${locationPeriods.length} markers`);
-        console.log(`   Bounds: [${mapBounds[0][0]}, ${mapBounds[0][1]}] to [${mapBounds[1][0]}, ${mapBounds[1][1]}]`);
+
+        console.log(`🗺️ Map fitted to bounds for ${locationMarkers.length} markers`);
       } catch (error) {
         console.error('❌ Error fitting map bounds:', error);
       }
-    }, 800); // Increased delay to ensure map is fully ready
-    
+    }, 800);
+
     return () => clearTimeout(fitBoundsTimeout);
-  }, [mapReady, locationPeriods, mapBounds]);
+  }, [mapReady, locationMarkers.length, mapBounds]);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   if (!isClient) {
     return (
@@ -1055,7 +590,7 @@ export default function MapPage() {
               Location Map
             </h1>
             <div className="flex gap-2 flex-wrap">
-              {locationPeriods.length > 0 && (
+              {locationMarkers.length > 0 && (
                 <>
                   <button
                     onClick={() => {
@@ -1067,7 +602,7 @@ export default function MapPage() {
                     🔄 Refresh Map
                   </button>
                   <div className="px-4 py-2 text-sm bg-purple-50 text-purple-600 rounded-lg">
-                    📍 {locationPeriods.length} location{locationPeriods.length !== 1 ? 's' : ''}
+                    📍 {locationMarkers.length} location{locationMarkers.length !== 1 ? 's' : ''}
                   </div>
                 </>
               )}
@@ -1080,21 +615,18 @@ export default function MapPage() {
                   <p>👥 Total contacts: {activeContacts.length}</p>
                   <p>📝 Contacts with notes: {contactsWithNotes.length}</p>
                   <p className="mt-2 pt-2 border-t border-purple-200">
-                    <span className="font-bold">Map locations: {locationPeriods.length}</span>
+                    <span className="font-bold">Map locations: {locationMarkers.length}</span>
                   </p>
                   <p className="text-xs text-purple-500 mt-2">
-                    Timeline: {locationPeriods.filter(p => p.source === 'timeline').length}<br/>
-                    Notes: {locationPeriods.filter(p => p.source === 'notes').length}
+                    Timeline: {locationMarkers.filter(p => p.source === 'timeline').length}<br/>
+                    Notes: {locationMarkers.filter(p => p.source === 'notes').length}
                   </p>
                   {missingCities.size > 0 && (
                     <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded text-xs">
                       <p className="font-semibold text-orange-800 mb-1">⚠️ Missing Cities:</p>
                       <p className="text-orange-700">
                         {Array.from(missingCities).slice(0, 5).join(', ')}
-                        {missingCities.size > 5 && '...'}
-                      </p>
-                      <p className="text-orange-600 mt-1">
-                        These cities need to be added to the database
+                        {Array.from(missingCities).length > 5 && '...'}
                       </p>
                     </div>
                   )}
@@ -1103,135 +635,109 @@ export default function MapPage() {
             </div>
           </div>
 
-          {locationPeriods.length === 0 ? (
+          {locationMarkers.length === 0 ? (
             <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-6 sm:p-8 text-center">
-              <p className="text-purple-600 mb-4">
-                No geographic locations found.
-              </p>
+              <p className="text-purple-600 mb-4">No geographic locations found.</p>
               <p className="text-sm text-purple-500 mb-2">
                 Add geographic events in your timeline or mention locations in contact notes to see them on the map.
               </p>
             </div>
           ) : (
             <>
-              <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-3 sm:p-4 mb-4 sm:mb-6 bg-gradient-to-br from-white to-purple-50">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <div>
-                    <p className="text-xs sm:text-sm text-purple-600 mb-1">
-                      Click on a city marker to see contacts associated with that location.
-                    </p>
-                    <p className="text-xs sm:text-sm text-purple-500">
-                      Found {locationPeriods.length} location{locationPeriods.length !== 1 ? 's' : ''} ({locationPeriods.filter(p => p.source === 'timeline').length} from timeline, {locationPeriods.filter(p => p.source === 'notes').length} from notes)
-                    </p>
-                  </div>
-                </div>
+              <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-3 sm:p-4 mb-4 sm:mb-6">
+                <p className="text-xs sm:text-sm text-purple-600 mb-1">
+                  Click on a city marker to see contacts associated with that location.
+                </p>
+                <p className="text-xs sm:text-sm text-purple-500">
+                  Found {locationMarkers.length} location{locationMarkers.length !== 1 ? 's' : ''} ({locationMarkers.filter(p => p.source === 'timeline').length} from timeline, {locationMarkers.filter(p => p.source === 'notes').length} from notes)
+                </p>
               </div>
 
               <div className="bg-white rounded-lg shadow-sm border border-purple-200 overflow-hidden mb-4 sm:mb-6">
                 <div className="w-full h-[400px] sm:h-[500px] lg:h-[600px] relative min-h-[400px] z-10">
-                  {locationPeriods.length > 0 && (
-                    <MapContainer
-                      key={`map-${mapKey}-${contactsHash.substring(0, 30).replace(/[^a-zA-Z0-9]/g, '')}-${locationPeriods.length}`}
-                      center={[mapCenter.lat, mapCenter.lng]}
-                      zoom={locationPeriods.length === 1 ? 10 : 2}
-                      minZoom={2}
-                      maxZoom={18}
-                      scrollWheelZoom={true}
-                      doubleClickZoom={true}
-                      dragging={true}
-                      touchZoom={true}
-                      zoomControl={true}
-                      style={{ height: '100%', width: '100%', zIndex: 1 }}
-                      className="z-10"
-                      whenReady={() => {
-                        setMapReady(true);
-                        console.log('🗺️ Map container ready with', locationPeriods.length, 'locations');
-                      }}
-                    >
-                      <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      />
-                      {locationPeriods.map((period, index) => {
-                        const position: [number, number] = [period.coordinates.lat, period.coordinates.lng];
-                        
-                        // Validate coordinates before rendering
-                        if (isNaN(position[0]) || isNaN(position[1]) || 
-                            position[0] < -90 || position[0] > 90 || 
-                            position[1] < -180 || position[1] > 180) {
-                          console.error(`❌ Invalid coordinates for ${period.city}:`, position);
-                          console.error(`   Coordinates: lat=${period.coordinates.lat}, lng=${period.coordinates.lng}`);
-                          return null;
-                        }
-                        
-                        const markerKey = `marker-${period.city.replace(/\s+/g, '-')}-${period.source}-${index}-${position[0]}-${position[1]}-${mapKey}`;
-                        
-                        console.log(`📍 [${index + 1}/${locationPeriods.length}] Rendering marker: ${period.city} at [${position[0]}, ${position[1]}]`);
-                        
-                        return (
-                          <Marker
-                            key={markerKey}
-                            position={position}
-                            eventHandlers={{
-                              click: () => {
-                                console.log('📍 Marker clicked:', period.city);
-                                setSelectedLocation(period);
-                              },
-                              add: () => {
-                                console.log(`✅ Marker ADDED to map: ${period.city} at [${position[0]}, ${position[1]}]`);
-                              },
-                              error: (e: any) => {
-                                console.error(`❌ Marker error for ${period.city}:`, e);
-                              },
-                            }}
-                          >
-                            <Popup>
-                              <div className="p-2">
-                                <h3 className="font-semibold text-purple-800 mb-1 capitalize">{period.city}</h3>
-                                {period.source === 'timeline' && (
-                                  <p className="text-xs text-purple-600 mb-2">
-                                    {period.startDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} -{' '}
-                                    {period.endDate
-                                      ? period.endDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-                                      : 'Present'}
-                                  </p>
-                                )}
-                                {period.source === 'notes' && (
-                                  <p className="text-xs text-purple-600 mb-2">
-                                    From contact notes
-                                  </p>
-                                )}
-                                <p className="text-xs text-purple-500">
-                                  {period.contacts.length} contact{period.contacts.length !== 1 ? 's' : ''} connected
+                  <MapContainer
+                    key={`map-${mapKey}-${locationMarkers.length}`}
+                    center={[mapCenter.lat, mapCenter.lng]}
+                    zoom={locationMarkers.length === 1 ? 10 : 2}
+                    minZoom={2}
+                    maxZoom={18}
+                    scrollWheelZoom={true}
+                    doubleClickZoom={true}
+                    dragging={true}
+                    touchZoom={true}
+                    zoomControl={true}
+                    style={{ height: '100%', width: '100%', zIndex: 1 }}
+                    className="z-10"
+                    whenReady={(mapEvent) => {
+                      setMapReady(true);
+                      console.log('🗺️ Map container ready');
+                    }}
+                  >
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    {locationMarkers.map((marker, index) => {
+                      // Validate coordinates before rendering
+                      if (!validateCoordinates(marker.coordinates)) {
+                        console.error(`❌ Skipping invalid marker: ${marker.displayName}`, marker.coordinates);
+                        return null;
+                      }
+
+                      const position: [number, number] = [marker.coordinates.lat, marker.coordinates.lng];
+                      
+                      console.log(`📍 Rendering marker [${index + 1}/${locationMarkers.length}]: ${marker.displayName} at [${position[0]}, ${position[1]}]`);
+
+                      return (
+                        <Marker
+                          key={`${marker.id}-${marker.source}-${position[0]}-${position[1]}-${mapKey}`}
+                          position={position}
+                          eventHandlers={{
+                            click: () => {
+                              console.log(`📍 Marker clicked: ${marker.displayName}`);
+                              setSelectedLocation(marker);
+                            },
+                            add: () => {
+                              console.log(`✅ Marker rendered: ${marker.displayName}`);
+                            },
+                          }}
+                        >
+                          <Popup>
+                            <div className="p-2">
+                              <h3 className="font-semibold text-purple-800 mb-1">{marker.displayName}</h3>
+                              {marker.source === 'timeline' && marker.startDate && (
+                                <p className="text-xs text-purple-600 mb-2">
+                                  {marker.startDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} -{' '}
+                                  {marker.endDate
+                                    ? marker.endDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+                                    : 'Present'}
                                 </p>
-                              </div>
-                            </Popup>
-                          </Marker>
-                        );
-                      })}
-                    </MapContainer>
-                  )}
+                              )}
+                              <p className="text-xs text-purple-500">
+                                {marker.contacts.length} contact{marker.contacts.length !== 1 ? 's' : ''} connected
+                              </p>
+                            </div>
+                          </Popup>
+                        </Marker>
+                      );
+                    })}
+                  </MapContainer>
                 </div>
               </div>
 
               {selectedLocation && (
-                <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-4 sm:p-6 bg-gradient-to-br from-white to-purple-50">
+                <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-4 sm:p-6">
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <h2 className="text-xl sm:text-2xl font-bold text-purple-800 mb-1 capitalize">
-                        {selectedLocation.city}
+                      <h2 className="text-xl sm:text-2xl font-bold text-purple-800 mb-1">
+                        {selectedLocation.displayName}
                       </h2>
-                      {selectedLocation.source === 'timeline' && (
+                      {selectedLocation.source === 'timeline' && selectedLocation.startDate && (
                         <p className="text-sm text-purple-600">
                           {selectedLocation.startDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} -{' '}
                           {selectedLocation.endDate
                             ? selectedLocation.endDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
                             : 'Present'}
-                        </p>
-                      )}
-                      {selectedLocation.source === 'notes' && (
-                        <p className="text-sm text-purple-600">
-                          Location mentioned in contact notes
                         </p>
                       )}
                     </div>
@@ -1244,13 +750,11 @@ export default function MapPage() {
                   </div>
 
                   {selectedLocation.contacts.length === 0 ? (
-                    <p className="text-purple-500 text-sm">
-                      No contacts were added during this period.
-                    </p>
+                    <p className="text-purple-500 text-sm">No contacts associated with this location.</p>
                   ) : (
                     <>
                       <p className="text-sm text-purple-700 mb-4">
-                        Contacts connected during this period ({selectedLocation.contacts.length}):
+                        Contacts ({selectedLocation.contacts.length}):
                       </p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                         {selectedLocation.contacts.map((contact) => (
@@ -1262,14 +766,10 @@ export default function MapPage() {
                               {contact.firstName} {contact.lastName}
                             </h3>
                             {contact.emailAddress && (
-                              <p className="text-xs text-purple-600 mb-1 truncate">
-                                {contact.emailAddress}
-                              </p>
+                              <p className="text-xs text-purple-600 mb-1 truncate">{contact.emailAddress}</p>
                             )}
                             {contact.dateAdded && (
-                              <p className="text-xs text-purple-500">
-                                Connected: {contact.dateAdded}
-                              </p>
+                              <p className="text-xs text-purple-500">Connected: {contact.dateAdded}</p>
                             )}
                           </div>
                         ))}
