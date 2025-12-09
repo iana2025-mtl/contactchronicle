@@ -194,8 +194,8 @@ export default function MapPage() {
     // Initial sync
     syncContacts();
 
-    // Poll localStorage every 250ms for fast updates
-    const pollInterval = setInterval(syncContacts, 250);
+    // Poll localStorage every 100ms for very fast updates
+    const pollInterval = setInterval(syncContacts, 100);
 
     // Listen for custom events
     const handleContactsUpdated = () => {
