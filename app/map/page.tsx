@@ -8,6 +8,9 @@ import ProtectedRoute from '../components/ProtectedRoute';
 import { useApp, Contact, TimelineEvent } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 
+// Import Leaflet CSS
+import 'leaflet/dist/leaflet.css';
+
 // Dynamically import Leaflet to avoid SSR issues
 const MapContainer = dynamic(() => import('react-leaflet').then((mod) => mod.MapContainer), { ssr: false });
 const TileLayer = dynamic(() => import('react-leaflet').then((mod) => mod.TileLayer), { ssr: false });
@@ -989,7 +992,7 @@ export default function MapPage() {
               </div>
 
               <div className="bg-white rounded-lg shadow-sm border border-purple-200 overflow-hidden mb-4 sm:mb-6">
-                <div className="w-full h-[400px] sm:h-[500px] lg:h-[600px] relative min-h-[400px]">
+                <div className="w-full h-[400px] sm:h-[500px] lg:h-[600px] relative min-h-[400px] z-10">
                   {locationPeriods.length > 0 && (
                     <MapContainer
                       key={`map-${mapKey}-${contactsHash.substring(0, 30).replace(/[^a-zA-Z0-9]/g, '')}-${locationPeriods.length}`}
@@ -997,7 +1000,13 @@ export default function MapPage() {
                       zoom={locationPeriods.length === 1 ? 10 : 2}
                       minZoom={2}
                       maxZoom={18}
-                      style={{ height: '100%', width: '100%', zIndex: 0 }}
+                      scrollWheelZoom={true}
+                      doubleClickZoom={true}
+                      dragging={true}
+                      touchZoom={true}
+                      zoomControl={true}
+                      style={{ height: '100%', width: '100%', zIndex: 1 }}
+                      className="z-10"
                       whenReady={() => {
                         setMapReady(true);
                         console.log('🗺️ Map container ready with', locationPeriods.length, 'locations');
