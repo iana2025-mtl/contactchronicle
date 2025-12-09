@@ -108,10 +108,19 @@ export default function ChroniclePage() {
         }
 
         // Count contacts with notes in imported file - check for notes field existence
+        // BE MORE LENIENT - check if notes field exists and has any value
         const importedWithNotes = importedContacts.filter(c => {
-          const hasNotes = c.notes && typeof c.notes === 'string' && c.notes.trim().length > 0;
+          // Check multiple ways: 'notes' in object, notes property exists, notes has content
+          const hasNotesKey = 'notes' in c;
+          const hasNotesValue = c.notes !== undefined && c.notes !== null;
+          const hasNotesString = typeof c.notes === 'string' && c.notes.trim().length > 0;
+          const hasNotes = hasNotesKey && hasNotesValue && hasNotesString;
+          
           if (hasNotes) {
             console.log(`📤 Found contact with notes: "${c.firstName} ${c.lastName}" - "${c.notes.substring(0, 60)}..."`);
+          } else if (hasNotesKey) {
+            // Has notes key but value might be empty/null - log it
+            console.log(`⚠️ Contact "${c.firstName} ${c.lastName}" has notes key but value is:`, c.notes, `(type: ${typeof c.notes})`);
           }
           return hasNotes;
         });
