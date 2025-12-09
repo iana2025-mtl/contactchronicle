@@ -378,30 +378,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const updatedContacts = contacts.map(c => {
       const update = updateMap.get(c.id);
       if (update) {
-        // Merge update, explicitly preserving notes
-        // CRITICAL: Check if 'notes' key exists in update object and has a value
-        let notesValue: string | undefined = undefined;
-        if ('notes' in update && update.notes !== undefined && update.notes !== null) {
-          // Update object has notes field with a value - use it
-          notesValue = update.notes;
-        } else if (c.notes !== undefined) {
-          // Update doesn't have notes or notes is undefined/null, but existing contact does - keep existing
-          notesValue = c.notes;
-        }
-        // If neither has notes, notesValue stays undefined
+        // CRITICAL: Handle notes field carefully - don't let undefined overwrite existing notes
+        const updateHasNotesKey = 'notes' in update;
+        const updateHasNotesValue = update.notes !== undefined && update.notes !== null && update.notes !== '';
+        const existingHasNotes = c.notes !== undefined && c.notes !== null && c.notes !== '';
         
+        // Determine final notes value
+        let finalNotes: string | undefined;
+        if (updateHasNotesKey && updateHasNotesValue) {
+          // Update has notes with value - use it
+          finalNotes = update.notes;
+        } else if (updateHasNotesKey && update.notes === '') {
+          // Update explicitly sets notes to empty string - clear it
+          finalNotes = '';
+        } else if (existingHasNotes) {
+          // Update doesn't have notes, but existing does - keep existing
+          finalNotes = c.notes;
+        } else {
+          // Neither has notes
+          finalNotes = undefined;
+        }
+        
+        // Build merged contact - remove notes from update spread to prevent undefined overwrite
+        const { notes: _, ...updateWithoutNotes } = update;
         const merged: Contact = {
           ...c,
-          ...update,
-          // CRITICAL: Explicitly set notes field - only if we have a value, otherwise preserve existing
-          notes: notesValue !== undefined ? notesValue : c.notes,
+          ...updateWithoutNotes,
+          // CRITICAL: Explicitly set notes field AFTER spread to ensure it's preserved
+          notes: finalNotes,
           id: c.id // Always preserve original ID
         };
         
         if (merged.notes && merged.notes.trim()) {
-          console.log(`  ✅ Merged contact ${c.id} HAS notes: "${merged.notes.substring(0, 50)}..."`);
+          console.error(`  ✅✅✅ Merged contact ${c.id} HAS notes: "${merged.notes.substring(0, 50)}..."`);
         } else {
-          console.log(`  ⚠️ Merged contact ${c.id} has no notes`);
+          console.error(`  ⚠️ Merged contact ${c.id} has no notes (update had: ${updateHasNotesValue}, existing had: ${existingHasNotes})`);
         }
         
         return merged;
