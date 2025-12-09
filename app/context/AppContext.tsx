@@ -161,7 +161,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (user && isDataLoaded) {
       const contactsKey = `contactChronicle_contacts_${user.id}`;
       try {
+        // Log before saving to verify notes are in the contacts array
+        const contactsWithNotes = contacts.filter(c => c.notes && c.notes.trim());
+        if (contactsWithNotes.length > 0) {
+          console.log(`💾 AUTO-SAVE: Saving ${contacts.length} contacts, ${contactsWithNotes.length} with notes`);
+        }
         localStorage.setItem(contactsKey, JSON.stringify(contacts));
+        
+        // Verify what was saved
+        const savedJson = localStorage.getItem(contactsKey);
+        if (savedJson) {
+          const savedContacts: Contact[] = JSON.parse(savedJson);
+          const savedWithNotes = savedContacts.filter(c => c.notes && c.notes.trim());
+          if (savedWithNotes.length !== contactsWithNotes.length) {
+            console.error(`⚠️ WARNING: Notes count mismatch! Before save: ${contactsWithNotes.length}, After save: ${savedWithNotes.length}`);
+          }
+        }
       } catch (error) {
         console.error('Error saving contacts data:', error);
       }
