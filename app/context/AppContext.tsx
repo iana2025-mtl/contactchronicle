@@ -418,14 +418,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(contactsKey, jsonString);
         console.log(`  ✅ Saved to localStorage`);
         
-        // Dispatch a custom event to notify other components
-        // Use a small delay to ensure state is updated first
+        // Dispatch a custom event to notify other components immediately
+        // Dispatch immediately for instant updates
+        window.dispatchEvent(new CustomEvent('contactsUpdated', { 
+          detail: { contacts: finalContacts, contactId: id, timestamp: Date.now() }
+        }));
+        console.log(`  ✅ Dispatched contactsUpdated event IMMEDIATELY at ${new Date().toISOString()}`);
+        
+        // Also dispatch after a small delay as backup
         setTimeout(() => {
           window.dispatchEvent(new CustomEvent('contactsUpdated', { 
             detail: { contacts: finalContacts, contactId: id, timestamp: Date.now() }
           }));
-          console.log(`  ✅ Dispatched contactsUpdated event at ${new Date().toISOString()}`);
-        }, 100);
+          console.log(`  ✅ Dispatched contactsUpdated event (backup) at ${new Date().toISOString()}`);
+        }, 50);
         
         // Verify what was actually saved
         const savedJson = localStorage.getItem(contactsKey);
