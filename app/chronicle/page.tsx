@@ -209,10 +209,12 @@ export default function ChroniclePage() {
           // Try to find existing contact - prioritize ID match (most reliable)
           // If IDs don't match (contacts were transferred before), use email or name
           let existing = null;
+          let matchMethod = 'none';
           
           // Method 1: Try matching by ID first (most reliable if IDs match)
           if (imported.id) {
             existing = contacts.find(c => c.id === imported.id);
+            if (existing) matchMethod = 'ID';
           }
           
           // Method 2: Try by email if ID match failed (must have email)
@@ -221,6 +223,7 @@ export default function ChroniclePage() {
               const cEmailLower = c.emailAddress?.toLowerCase();
               return cEmailLower && cEmailLower === emailLower;
             });
+            if (existing) matchMethod = 'EMAIL';
           }
           
           // Method 3: Try by exact name match if email match failed
@@ -229,7 +232,16 @@ export default function ChroniclePage() {
               const cNameKey = `${c.firstName?.toLowerCase()}_${c.lastName?.toLowerCase()}`;
               return cNameKey === nameKey && cNameKey !== 'first name_last name'; // Exclude placeholder contacts
             });
+            if (existing) matchMethod = 'NAME';
           }
+          
+          console.log(`  🔍 Match result for "${imported.firstName} ${imported.lastName}":`, {
+            found: !!existing,
+            method: matchMethod,
+            existingId: existing?.id,
+            importedId: imported.id,
+            idsMatch: existing?.id === imported.id
+          });
           
           // Check if imported contact has notes - be very explicit
           const hasImportedNotes = imported.notes !== undefined && 
