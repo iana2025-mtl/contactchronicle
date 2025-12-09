@@ -177,6 +177,9 @@ export default function MapPage() {
   const lastStorageCheckRef = useRef<string>('');
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const geocodingCacheRef = useRef<Map<string, { lat: number; lng: number; displayName: string } | null>>(new Map());
+  const userInteractedRef = useRef(false); // Track if user manually zoomed/panned
+  const fitBoundsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastMarkersHashRef = useRef<string>('');
 
   // ============================================================================
   // REACTIVE DATA SYNC: Direct localStorage sync ensures real-time updates
@@ -426,7 +429,7 @@ export default function MapPage() {
     }
   }, [user, dynamicCities]);
 
-  // Geocode city using OpenStreetMap Nominatim API
+  // Geocode city using Next.js API route (fixes CORS issue)
   const geocodeCity = useCallback(async (cityName: string): Promise<{ lat: number; lng: number; displayName: string } | null> => {
     if (!cityName?.trim()) return null;
 
@@ -438,13 +441,9 @@ export default function MapPage() {
     try {
       console.log(`🌐 Geocoding city: "${cityName}"`);
       const encodedCity = encodeURIComponent(cityName);
-      const url = `https://nominatim.openstreetmap.org/search?q=${encodedCity}&format=json&limit=1&addressdetails=1`;
+      const url = `/api/geocode?city=${encodedCity}`;
       
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'ContactChronicle/1.0' // Required by Nominatim
-        }
-      });
+      const response = await fetch(url);
 
       if (!response.ok) {
         console.error(`❌ Geocoding failed for "${cityName}": ${response.status}`);
@@ -454,26 +453,18 @@ export default function MapPage() {
 
       const data = await response.json();
       
-      if (data && data.length > 0) {
-        const result = data[0];
-        const lat = parseFloat(result.lat);
-        const lng = parseFloat(result.lon);
-        
-        if (isNaN(lat) || isNaN(lng)) {
-          console.error(`❌ Invalid coordinates from geocoding: "${cityName}"`);
-          geocodingCacheRef.current.set(cityName, null);
-          return null;
-        }
+      if (data.error) {
+        console.warn(`⚠️ Geocoding error for "${cityName}": ${data.error}`);
+        geocodingCacheRef.current.set(cityName, null);
+        return null;
+      }
 
-        // Validate coordinates
-        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-          console.error(`❌ Coordinates out of range for "${cityName}": [${lat}, ${lng}]`);
-          geocodingCacheRef.current.set(cityName, null);
-          return null;
-        }
-
-        const displayName = result.display_name?.split(',')[0] || cityName;
-        const coords = { lat, lng, displayName };
+      if (data.lat && data.lng) {
+        const coords = { 
+          lat: data.lat, 
+          lng: data.lng, 
+          displayName: data.displayName || cityName 
+        };
         
         // Cache the result
         geocodingCacheRef.current.set(cityName, coords);
@@ -481,7 +472,7 @@ export default function MapPage() {
         // Save to dynamic cities
         saveDynamicCity(cityName, coords);
         
-        console.log(`✅ Geocoded "${cityName}" → ${displayName} at [${lat}, ${lng}]`);
+        console.log(`✅ Geocoded "${cityName}" → ${coords.displayName} at [${coords.lat}, ${coords.lng}]`);
         return coords;
       } else {
         console.warn(`⚠️ No geocoding results for "${cityName}"`);
@@ -1080,16 +1071,45 @@ export default function MapPage() {
   // ============================================================================
   // FIT MAP BOUNDS: Automatically adjust view to show all markers
   // ============================================================================
+  // FIT MAP BOUNDS: Only fit bounds when markers actually change, respect user interaction
+  // ============================================================================
   useEffect(() => {
+    // Create hash of markers to detect actual changes
+    const markersHash = JSON.stringify(
+      locationMarkers.map(m => ({
+        id: m.id,
+        lat: m.coordinates.lat,
+        lng: m.coordinates.lng,
+      })).sort((a, b) => a.id.localeCompare(b.id))
+    );
+
+    // Skip if markers haven't actually changed
+    if (markersHash === lastMarkersHashRef.current) {
+      return;
+    }
+
+    lastMarkersHashRef.current = markersHash;
+
     if (!mapReady || !locationMarkers.length || !mapBounds) {
       console.log(`🗺️ Fit bounds skipped: mapReady=${mapReady}, markers=${locationMarkers.length}, bounds=${!!mapBounds}`);
       return;
     }
 
-    console.log(`🗺️ Attempting to fit bounds for ${locationMarkers.length} markers`);
+    // Don't auto-fit if user has manually interacted with map
+    if (userInteractedRef.current) {
+      console.log(`🗺️ Fit bounds skipped: user has interacted with map`);
+      return;
+    }
+
+    // Clear any pending fitBounds
+    if (fitBoundsTimeoutRef.current) {
+      clearTimeout(fitBoundsTimeoutRef.current);
+    }
+
+    console.log(`🗺️ Attempting to fit bounds for ${locationMarkers.length} markers (markers changed)`);
     console.log(`   Bounds: [${mapBounds[0][0]}, ${mapBounds[0][1]}] to [${mapBounds[1][0]}, ${mapBounds[1][1]}]`);
 
-    const fitBoundsTimeout = setTimeout(() => {
+    fitBoundsTimeoutRef.current = setTimeout(() => {
       try {
         const L = require('leaflet');
         if (!L) {
@@ -1121,20 +1141,7 @@ export default function MapPage() {
         }
 
         if (!map._container || !map._container._leaflet_id) {
-          console.warn('⚠️ Map container not initialized, retrying...');
-          // Retry after a delay
-          setTimeout(() => {
-            if (map._container && map._container._leaflet_id && typeof map.fitBounds === 'function') {
-              const leafletBounds = L.latLngBounds(mapBounds[0], mapBounds[1]);
-              const isWorldwide = Math.abs(mapBounds[1][1] - mapBounds[0][1]) > 50;
-              map.fitBounds(leafletBounds, {
-                padding: [50, 50],
-                maxZoom: isWorldwide ? 10 : 15,
-                animate: true
-              });
-              console.log(`🗺️ Map fitted to bounds (retry)`);
-            }
-          }, 500);
+          console.warn('⚠️ Map container not initialized');
           return;
         }
 
@@ -1144,26 +1151,51 @@ export default function MapPage() {
         // Create bounds
         const leafletBounds = L.latLngBounds(mapBounds[0], mapBounds[1]);
         const isWorldwide = Math.abs(mapBounds[1][1] - mapBounds[0][1]) > 50;
-        const latSpan = Math.abs(mapBounds[1][0] - mapBounds[0][0]);
-        const lngSpan = Math.abs(mapBounds[1][1] - mapBounds[0][1]);
 
-        console.log(`   Span: lat=${latSpan.toFixed(2)}, lng=${lngSpan.toFixed(2)}, worldwide=${isWorldwide}`);
-
+        // Fit bounds without animation to prevent blinking
         map.fitBounds(leafletBounds, {
           padding: isWorldwide ? [100, 100] : [50, 50],
           maxZoom: isWorldwide ? 10 : 15,
-          animate: true
+          animate: false // Disable animation to prevent blinking
         });
 
         console.log(`✅ Map fitted to bounds for ${locationMarkers.length} markers`);
-        console.log(`   Current zoom: ${map.getZoom()}, center: [${map.getCenter().lat}, ${map.getCenter().lng}]`);
       } catch (error) {
         console.error('❌ Error fitting map bounds:', error);
       }
-    }, 1000); // Increased delay to ensure map is fully ready
+    }, 500); // Reduced delay
 
-    return () => clearTimeout(fitBoundsTimeout);
-  }, [mapReady, locationMarkers.length, mapBounds]);
+    return () => {
+      if (fitBoundsTimeoutRef.current) {
+        clearTimeout(fitBoundsTimeoutRef.current);
+      }
+    };
+  }, [mapReady, locationMarkers.length, mapBounds, locationMarkers]);
+
+  // Track user interaction with map
+  useEffect(() => {
+    if (!mapReady || !mapInstanceRef.current) return;
+
+    const map = mapInstanceRef.current;
+    
+    const handleUserInteraction = () => {
+      userInteractedRef.current = true;
+      console.log('🗺️ User interacted with map - disabling auto-fit bounds');
+    };
+
+    // Listen for zoom and pan events
+    map.on('zoomstart', handleUserInteraction);
+    map.on('dragstart', handleUserInteraction);
+    map.on('zoom', handleUserInteraction);
+    map.on('moveend', handleUserInteraction);
+
+    return () => {
+      map.off('zoomstart', handleUserInteraction);
+      map.off('dragstart', handleUserInteraction);
+      map.off('zoom', handleUserInteraction);
+      map.off('moveend', handleUserInteraction);
+    };
+  }, [mapReady]);
 
   useEffect(() => {
     setIsClient(true);
