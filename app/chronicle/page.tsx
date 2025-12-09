@@ -330,32 +330,6 @@ export default function ChroniclePage() {
           updateMap.set(id, contact);
         });
         
-        // Create a single updated contacts array
-        const updatedContacts = contacts.map(c => {
-          const update = updateMap.get(c.id);
-          if (update) {
-            // Merge update, explicitly preserving notes
-            const merged = {
-              ...c,
-              ...update,
-              notes: update.notes !== undefined ? update.notes : c.notes,
-              id: c.id // Always preserve original ID
-            };
-            if (merged.notes) {
-              console.log(`  ✅ Merged contact ${c.id} HAS notes: "${merged.notes.substring(0, 40)}..."`);
-            }
-            return merged;
-          }
-          return c;
-        });
-        
-        // Add new contacts
-        const finalContacts = [...updatedContacts, ...contactsToAdd];
-        
-        console.log(`  ✅ Batch update complete: ${finalContacts.length} total contacts`);
-        const finalContactsWithNotes = finalContacts.filter(c => c.notes && c.notes.trim());
-        console.log(`  ✅ Contacts with notes after batch update: ${finalContactsWithNotes.length}`);
-        
         // Apply all updates at once using batch update function
         // This ensures all updates happen in a single state change and notes are preserved
         if (contactsToUpdate.length > 0) {
