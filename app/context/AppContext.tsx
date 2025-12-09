@@ -371,10 +371,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         console.log(`  ✅ Saved to localStorage`);
         
         // Dispatch a custom event to notify other components
-        window.dispatchEvent(new CustomEvent('contactsUpdated', { 
-          detail: { contacts: finalContacts, contactId: id }
-        }));
-        console.log(`  ✅ Dispatched contactsUpdated event`);
+        // Use a small delay to ensure state is updated first
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('contactsUpdated', { 
+            detail: { contacts: finalContacts, contactId: id, timestamp: Date.now() }
+          }));
+          console.log(`  ✅ Dispatched contactsUpdated event at ${new Date().toISOString()}`);
+        }, 100);
         
         // Verify what was actually saved
         const savedJson = localStorage.getItem(contactsKey);

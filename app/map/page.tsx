@@ -239,11 +239,13 @@ export default function MapPage() {
     };
   }, [user, contacts]);
 
-  // Track contacts hash changes
+  // Track contacts hash changes - CRITICAL: Include notes in hash to detect ANY note changes
   const contactsHash = useMemo(() => {
-    const hash = contacts.map(c => 
-      `${c.id}:${c.firstName}:${c.lastName}:${c.notes || ''}:${c.dateAdded || ''}`
-    ).join('|');
+    // Create hash that includes ALL contact data, especially notes
+    const hash = contacts.map(c => {
+      const notesContent = c.notes || '';
+      return `${c.id}:${c.firstName}:${c.lastName}:${notesContent}:${c.dateAdded || ''}`;
+    }).join('|');
     
     const hasChanged = hash !== previousContactsHashRef.current;
     if (hasChanged) {
@@ -251,8 +253,21 @@ export default function MapPage() {
       console.log(`  📊 Total contacts: ${contacts.length}`);
       const contactsWithNotes = contacts.filter(c => c.notes && c.notes.trim());
       console.log(`  📝 Contacts with notes: ${contactsWithNotes.length}`);
+      
+      // Log sample of notes to verify they're in the hash
+      if (contactsWithNotes.length > 0) {
+        console.log(`  📝 Sample notes (first 3):`, contactsWithNotes.slice(0, 3).map(c => ({
+          name: `${c.firstName} ${c.lastName}`,
+          notesLength: c.notes?.length || 0,
+          notesPreview: c.notes?.substring(0, 100)
+        })));
+      }
+      
+      console.log(`  🔑 Hash changed! Previous hash length: ${previousContactsHashRef.current.length}, New hash length: ${hash.length}`);
       previousContactsHashRef.current = hash;
       forceUpdateRef.current += 1;
+    } else {
+      console.log('🔄 MAP PAGE: contactsHash unchanged');
     }
     
     return hash;
@@ -269,13 +284,18 @@ export default function MapPage() {
   // Force map update on data changes
   useEffect(() => {
     console.log('🔄 MAP PAGE: Data change detected - forcing map recalculation!');
+    console.log(`  📊 Contacts hash: ${contactsHash.substring(0, 100)}...`);
+    console.log(`  📊 Timeline hash: ${timelineHash.substring(0, 50)}...`);
     console.log(`  📊 Force update counter: ${forceUpdateRef.current}`);
+    console.log(`  📊 Contacts array length: ${contacts.length}`);
+    console.log(`  📊 Contacts with notes: ${contacts.filter(c => c.notes && c.notes.trim()).length}`);
+    
     setMapKey(prev => {
       const newKey = prev + 1;
-      console.log(`  🗺️ Map key updated to ${newKey} - map will remount and recalculate ALL markers`);
+      console.log(`  🗺️ Map key updated from ${prev} to ${newKey} - map will remount and recalculate ALL markers`);
       return newKey;
     });
-  }, [contactsHash, timelineHash]);
+  }, [contactsHash, timelineHash, contacts]);
 
   // Set up Leaflet icons
   useEffect(() => {
@@ -374,15 +394,20 @@ export default function MapPage() {
     return null;
   }, []);
 
-  // Extract locations from contact notes
+  // Extract locations from contact notes - COMPREHENSIVE VERSION
   const extractLocationsFromNotes = useCallback((contact: Contact): string[] => {
-    if (!contact.notes || !contact.notes.trim()) return [];
+    if (!contact.notes || !contact.notes.trim()) {
+      console.log(`  ⚠️ Contact "${contact.firstName} ${contact.lastName}" has no notes or empty notes`);
+      return [];
+    }
     
     const locations: string[] = [];
     const noteText = contact.notes;
     const noteTextLower = noteText.toLowerCase();
     
-    console.log(`  🔍 Extracting locations from "${contact.firstName} ${contact.lastName}" notes:`, noteText.substring(0, 200));
+    console.log(`  🔍 Extracting locations from "${contact.firstName} ${contact.lastName}" notes:`);
+    console.log(`     Full notes: "${noteText}"`);
+    console.log(`     Notes length: ${noteText.length}`);
     
     // Match known cities
     for (const [cityKey, coords] of Object.entries(cityCoordinates)) {
@@ -604,12 +629,23 @@ export default function MapPage() {
     return [...periodsWithContacts];
   }, [timelineEvents, contacts, extractLocation, getCityCoordinates, parseDate]);
 
-  // Build location markers from notes
+  // Build location markers from notes - FULLY REACTIVE
   const locationMarkersFromNotes = useMemo(() => {
     console.log('🔍 RECALCULATING: locationMarkersFromNotes');
-    console.log(`  - Total contacts: ${contacts.length}`);
+    console.log(`  - Contacts array reference:`, contacts);
+    console.log(`  - Contacts array length: ${contacts.length}`);
     const contactsWithNotes = contacts.filter(c => c.notes && c.notes.trim());
     console.log(`  - Contacts with notes: ${contactsWithNotes.length}`);
+    
+    // Log all contacts with notes for debugging
+    if (contactsWithNotes.length > 0) {
+      console.log(`  - All contacts with notes:`, contactsWithNotes.map(c => ({
+        id: c.id,
+        name: `${c.firstName} ${c.lastName}`,
+        notesLength: c.notes?.length || 0,
+        notesPreview: c.notes?.substring(0, 150)
+      })));
+    }
     
     const locationMap = new Map<string, { coordinates: { lat: number; lng: number }; contacts: Contact[]; displayName: string }>();
     let processedCount = 0;
@@ -682,8 +718,11 @@ export default function MapPage() {
       console.log(`  📍 Locations:`, periods.map(p => `${p.city} [${p.coordinates.lat}, ${p.coordinates.lng}] - ${p.contacts.length} contacts`));
     }
     
-    return [...periods];
-  }, [contacts, extractLocationsFromNotes, getCityCoordinates, locationPeriodsFromTimeline]);
+    // CRITICAL: Return new array reference to ensure React detects changes
+    const result = [...periods];
+    console.log(`  ✅ RETURNING ${result.length} location markers from notes (new array reference)`);
+    return result;
+  }, [contacts, contactsHash, extractLocationsFromNotes, getCityCoordinates, locationPeriodsFromTimeline]);
 
   // Combine timeline and notes locations
   const locationPeriods = useMemo(() => {
