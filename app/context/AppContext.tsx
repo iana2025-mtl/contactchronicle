@@ -289,9 +289,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (updated.notes) {
           console.log(`  - ✅ Merged contact HAS notes: "${updated.notes.substring(0, 100)}..."`);
         } else {
-          console.log(`  - ❌ Merged contact MISSING notes!`);
-          console.log(`  - Contact update object keys:`, Object.keys(contact));
-          console.log(`  - 'notes' in contact:`, 'notes' in contact);
+          console.error(`  - ❌❌❌ Merged contact MISSING notes!`);
+          console.error(`  - Contact update object keys:`, Object.keys(contact));
+          console.error(`  - 'notes' in contact:`, 'notes' in contact);
+          console.error(`  - Existing contact notes:`, c.notes || 'none');
+          console.error(`  - Update has notes:`, contact.notes || 'none');
+          
+          // FINAL CHECK: If existing contact somehow had notes but we lost them, log it
+          if (!updated.notes && c.notes) {
+            console.error(`  - ⚠️⚠️⚠️ EXISTING CONTACT HAD NOTES BUT MERGED DOESN'T!`);
+            console.error(`  - This should not happen with the new preservation logic!`);
+          }
         }
         return updated;
       }
