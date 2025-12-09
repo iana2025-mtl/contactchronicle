@@ -597,18 +597,45 @@ export default function MapPage() {
   // ============================================================================
   const extractLocationFromTimeline = useCallback((text: string): string | null => {
     if (!text?.trim()) return null;
-    const patterns = [
-      /(?:moved\s+to|lived\s+in|located\s+in)\s+([^,]+?)(?:,|$)/i,
-      /(?:in|at)\s+([^,]+?)(?:,|\s*$)/i,
+    
+    // Clean up common prefixes and extract just the location
+    let cleanedText = text.trim();
+    
+    // Remove common prefixes (case-insensitive)
+    const prefixes = [
+      /^(?:met\s+in|moved\s+to|lived\s+in|located\s+in|worked\s+in|born\s+in|grew\s+up\s+in|from)\s+/i,
+      /^(?:in|at|near|by)\s+/i,
     ];
+    
+    for (const prefix of prefixes) {
+      cleanedText = cleanedText.replace(prefix, '').trim();
+    }
+    
+    // Extract location using patterns
+    const patterns = [
+      // "City, State" or "City, Country"
+      /^([^,]+?)(?:\s*,\s*([^,]+?))?(?:\s*$|$)/,
+      // Just capture the first meaningful part
+      /^([^,]+?)(?:\s*$|$)/,
+    ];
+    
     for (const pattern of patterns) {
-      const match = text.match(pattern);
+      const match = cleanedText.match(pattern);
       if (match?.[1]) {
-        const location = match[1].trim();
+        let location = match[1].trim();
+        // Add state/country if present
+        if (match[2]) {
+          location += ', ' + match[2].trim();
+        }
+        // Clean up any remaining artifacts
+        location = location.replace(/\s+/g, ' ').trim();
         if (location.length > 2) return location;
       }
     }
-    return text.trim();
+    
+    // Fallback: return cleaned text
+    cleanedText = cleanedText.replace(/\s+/g, ' ').trim();
+    return cleanedText.length > 2 ? cleanedText : null;
   }, []);
 
   const extractLocationsFromNotes = useCallback((contact: Contact): string[] => {
