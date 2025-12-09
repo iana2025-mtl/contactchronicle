@@ -77,8 +77,25 @@ export default function ChroniclePage() {
           return;
         }
         
-        // CRITICAL: Check raw JSON structure for notes field
+        // CRITICAL: Immediately after parsing, check raw structure
         console.log(`📥 PARSED: ${importedContacts.length} contacts`);
+        
+        // Check first few contacts IMMEDIATELY after parsing
+        console.log(`📥 FIRST 3 CONTACTS AFTER PARSING:`, importedContacts.slice(0, 3).map(c => ({
+          name: `${c.firstName} ${c.lastName}`,
+          hasNotesKey: 'notes' in c,
+          notesValue: c.notes,
+          notesType: typeof c.notes,
+          notesLength: c.notes?.length,
+          allKeys: Object.keys(c),
+          fullContact: c
+        })));
+        
+        // Count contacts with notes IMMEDIATELY after parsing (before any processing)
+        const notesCountImmediate = importedContacts.filter(c => {
+          return 'notes' in c && c.notes && typeof c.notes === 'string' && c.notes.trim().length > 0;
+        }).length;
+        console.log(`📥 IMMEDIATE NOTES COUNT: ${notesCountImmediate} contacts have notes (checked right after parsing)`);
         const contactsWithNotesKey = importedContacts.filter(c => 'notes' in c);
         const contactsWithNotesValue = importedContacts.filter(c => c.notes && typeof c.notes === 'string' && c.notes.trim().length > 0);
         
