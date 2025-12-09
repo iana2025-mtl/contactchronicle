@@ -339,8 +339,17 @@ export default function MapPage() {
   // Use synced timeline events or fallback to context
   const activeTimelineEvents = useMemo(() => {
     // Prefer synced timeline events from localStorage once sync has occurred
-    // Use context data only before the first sync
-    return timelineSynced ? localTimelineEvents : timelineEvents;
+    // If localTimelineEvents is empty and we haven't synced yet, use context
+    // Once synced, always prefer localStorage data (even if empty array)
+    if (timelineSynced) {
+      return localTimelineEvents;
+    }
+    // Before sync, use context - but also check if context has data
+    // If context has data and local doesn't, use context
+    if (timelineEvents.length > 0 && localTimelineEvents.length === 0) {
+      return timelineEvents;
+    }
+    return localTimelineEvents.length > 0 ? localTimelineEvents : timelineEvents;
   }, [localTimelineEvents, timelineEvents, timelineSynced]);
 
   // ============================================================================
