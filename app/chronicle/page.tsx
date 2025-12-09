@@ -61,9 +61,14 @@ export default function ChroniclePage() {
 
   // Import contacts from JSON file
   const handleImportContacts = (event: React.ChangeEvent<HTMLInputElement>) => {
+    // CRITICAL: Log IMMEDIATELY when function is called
+    console.error(`🚨🚨🚨 HANDLE IMPORT CALLED 🚨🚨🚨`);
+    window.alert(`🚨 FUNCTION CALLED\nhandleImportContacts was triggered!\n\nClick OK...`);
+    
     const file = event.target.files?.[0];
     if (!file) {
-      alert('❌ No file selected!');
+      window.alert('❌ No file selected!');
+      console.error(`🚨 NO FILE SELECTED`);
       return;
     }
 
