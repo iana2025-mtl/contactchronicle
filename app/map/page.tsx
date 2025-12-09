@@ -313,54 +313,182 @@ export default function MapPage() {
   }, []);
 
   const extractLocationsFromNotes = useCallback((contact: Contact): string[] => {
-    if (!contact.notes?.trim()) return [];
+    if (!contact.notes?.trim()) {
+      console.log(`  ⚠️ Contact "${contact.firstName} ${contact.lastName}" has no notes`);
+      return [];
+    }
 
     const locations: string[] = [];
     const noteText = contact.notes;
     const noteTextLower = noteText.toLowerCase();
 
-    // Direct city name matching
+    console.log(`  🔍 Extracting locations from "${contact.firstName} ${contact.lastName}"`);
+    console.log(`     Notes: "${noteText.substring(0, 200)}${noteText.length > 200 ? '...' : ''}"`);
+
+    // STEP 1: Direct city name matching - check ALL city keys
     for (const [cityKey, coords] of Object.entries(cityCoordinates)) {
       const cityKeyLower = cityKey.toLowerCase();
       
       // Skip very short keys
       if (cityKey.length < 3) continue;
 
-      // Check for exact match or word boundary match
+      // Try multiple matching strategies
+      const cityName = cityKey.split(',')[0].trim().toLowerCase();
+      const cityNameWords = cityName.split(/\s+/);
+      
+      // Strategy 1: Full city key match (e.g., "new york, ny")
       if (noteTextLower.includes(cityKeyLower)) {
-        const regex = new RegExp(`\\b${cityKeyLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-        if (regex.test(noteText) && !locations.some(l => l.toLowerCase() === cityKeyLower)) {
-          locations.push(cityKey);
-          console.log(`  ✅ Found "${cityKey}" in notes for ${contact.firstName} ${contact.lastName}`);
+        // Use word boundary for better matching
+        const escapedKey = cityKeyLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`\\b${escapedKey}\\b`, 'i');
+        if (regex.test(noteText)) {
+          if (!locations.some(l => l.toLowerCase() === cityKeyLower)) {
+            locations.push(cityKey);
+            console.log(`    ✅ Direct match: "${cityKey}"`);
+            continue;
+          }
+        }
+      }
+      
+      // Strategy 2: City name only (e.g., just "new york")
+      if (cityNameWords.length > 1) {
+        // Multi-word city - check if all words appear
+        const allWordsFound = cityNameWords.every(word => {
+          if (word.length < 3) return true; // Skip short words like "de", "ny"
+          const wordRegex = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+          return wordRegex.test(noteText);
+        });
+        
+        if (allWordsFound && !locations.some(l => {
+          const locCityName = l.split(',')[0].trim().toLowerCase();
+          return locCityName === cityName;
+        })) {
+          // Try to get coordinates using full key
+          const coords = getCityCoordinates(cityKey);
+          if (coords) {
+            locations.push(cityKey);
+            console.log(`    ✅ Multi-word match: "${cityKey}"`);
+            continue;
+          }
+        }
+      } else {
+        // Single word city - use word boundary
+        const escapedCity = cityName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const wordBoundaryRegex = new RegExp(`\\b${escapedCity}\\b`, 'i');
+        if (wordBoundaryRegex.test(noteText) && !locations.some(l => {
+          const locCityName = l.split(',')[0].trim().toLowerCase();
+          return locCityName === cityName;
+        })) {
+          const coords = getCityCoordinates(cityKey);
+          if (coords) {
+            locations.push(cityKey);
+            console.log(`    ✅ Single-word match: "${cityKey}"`);
+            continue;
+          }
         }
       }
     }
 
-    // Pattern matching for "City, State" or "City State"
+    // STEP 2: Pattern matching for "City, State", "City State", "City Country", etc.
     const patterns = [
-      /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*,\s*([A-Z][a-z]+|[A-Z]{2})\b/g,
-      /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+([A-Z]{2})\b/g,
-      /\b(?:in|at|from|to)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g,
+      // "City, State" or "City, Country"
+      /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*,\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*|[A-Z]{2})\b/g,
+      // "City State" (space separated)
+      /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g,
+      // "City ST" (state code)
+      /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),?\s+([A-Z]{2})\b/g,
+      // "in/at/from/to City"
+      /\b(?:in|at|from|to|near|by|lives?\s+in|works?\s+in|met\s+in)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g,
+      // Standalone capitalized words (potential cities)
+      /\b([A-Z][a-z]{3,})\b/g,
     ];
+
+    const skipWords = new Set([
+      'The', 'This', 'That', 'These', 'Those', 'There', 'Here', 'When', 'Where', 'What',
+      'Who', 'How', 'Why', 'First', 'Last', 'Next', 'Previous', 'Met', 'Meet', 'Worked',
+      'Work', 'Lived', 'Live', 'Moved', 'Move', 'Born', 'Grew', 'Studied', 'Study',
+      'Graduated', 'Attended', 'Joined', 'Left', 'Started', 'Ended', 'During', 'After',
+      'Before', 'Since', 'Until', 'With', 'Without', 'From', 'To', 'In', 'At', 'On',
+      'By', 'For', 'And', 'Or', 'But', 'Not', 'All', 'Some', 'Many', 'Most', 'Each',
+      'Every', 'Both', 'Either', 'Neither', 'Year', 'Years', 'Month', 'Months', 'Week',
+      'Weeks', 'Day', 'Days', 'Today', 'Yesterday', 'Tomorrow', 'January', 'February',
+      'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October',
+      'November', 'December'
+    ]);
 
     for (const pattern of patterns) {
       let match;
       pattern.lastIndex = 0;
       while ((match = pattern.exec(noteText)) !== null) {
         if (match[1]) {
-          const cityToCheck = match[1].trim();
-          const fullName = match[2] ? `${cityToCheck}, ${match[2].trim()}` : cityToCheck;
+          let cityToCheck = match[1].trim();
           
-          const coords = getCityCoordinates(fullName) || getCityCoordinates(cityToCheck);
-          if (coords && !locations.some(l => l.toLowerCase() === fullName.toLowerCase())) {
-            locations.push(fullName);
-            console.log(`  ✅ Pattern matched: "${fullName}"`);
+          // Skip common non-city words
+          if (skipWords.has(cityToCheck)) continue;
+          
+          // Build variations to try
+          const variations: string[] = [];
+          if (match[2]) {
+            const secondPart = match[2].trim();
+            // Try with comma, without comma, and city only
+            variations.push(`${cityToCheck}, ${secondPart}`);
+            variations.push(`${cityToCheck} ${secondPart}`);
+          }
+          variations.push(cityToCheck);
+          
+          // Try each variation
+          for (const variant of variations) {
+            const coords = getCityCoordinates(variant);
+            if (coords) {
+              // Check if we already have this location (by coordinates, not name)
+              const coordKey = `${coords.lat.toFixed(4)}_${coords.lng.toFixed(4)}`;
+              const alreadyFound = locations.some(l => {
+                const lCoords = getCityCoordinates(l);
+                if (!lCoords) return false;
+                const lCoordKey = `${lCoords.lat.toFixed(4)}_${lCoords.lng.toFixed(4)}`;
+                return lCoordKey === coordKey;
+              });
+              
+              if (!alreadyFound) {
+                // Find the best matching key from database
+                const bestKey = Object.keys(cityCoordinates).find(key => {
+                  const keyCoords = cityCoordinates[key];
+                  return Math.abs(keyCoords.lat - coords.lat) < 0.001 &&
+                         Math.abs(keyCoords.lng - coords.lng) < 0.001;
+                }) || variant;
+                
+                locations.push(bestKey);
+                console.log(`    ✅ Pattern matched: "${variant}" → "${bestKey}"`);
+                break; // Found a match, don't try other variations
+              }
+            }
           }
         }
       }
     }
 
-    return locations;
+    // Remove duplicates (by coordinates)
+    const uniqueLocations: string[] = [];
+    const seenCoords = new Set<string>();
+    
+    locations.forEach(loc => {
+      const coords = getCityCoordinates(loc);
+      if (coords) {
+        const coordKey = `${coords.lat.toFixed(4)}_${coords.lng.toFixed(4)}`;
+        if (!seenCoords.has(coordKey)) {
+          seenCoords.add(coordKey);
+          uniqueLocations.push(loc);
+        }
+      }
+    });
+
+    if (uniqueLocations.length > 0) {
+      console.log(`    ✅ Extracted ${uniqueLocations.length} unique location(s):`, uniqueLocations);
+    } else {
+      console.log(`    ⚠️ No locations extracted`);
+    }
+
+    return uniqueLocations;
   }, [getCityCoordinates]);
 
   const parseDate = useCallback((dateStr: string): Date | null => {
@@ -507,11 +635,13 @@ export default function MapPage() {
   // FORCE MAP UPDATE: When data changes
   // ============================================================================
   useEffect(() => {
-    // Create hash that includes empty notes to detect deletions
+    // Create comprehensive hash that includes full notes content to detect ANY change
     const contactsHash = JSON.stringify(
       activeContacts.map(c => ({ 
         id: c.id, 
-        notes: c.notes || '' // Include empty string to detect when notes are deleted
+        notes: c.notes || '', // Include empty string to detect when notes are deleted
+        firstName: c.firstName,
+        lastName: c.lastName
       }))
     );
 
@@ -522,14 +652,23 @@ export default function MapPage() {
       console.log(`  📊 Contacts with notes: ${contactsWithNotes.length}`);
       console.log(`  📊 Contacts without notes: ${contactsWithoutNotes.length}`);
       
+      // Log sample of contacts with notes to verify they're being detected
+      if (contactsWithNotes.length > 0) {
+        console.log(`  📝 Sample contacts with notes:`, contactsWithNotes.slice(0, 3).map(c => ({
+          name: `${c.firstName} ${c.lastName}`,
+          notesLength: c.notes?.length || 0,
+          notesPreview: c.notes?.substring(0, 100)
+        })));
+      }
+      
       lastContactsHashRef.current = contactsHash;
       setMapKey(prev => {
         const newKey = prev + 1;
-        console.log(`  🗺️ Map key updated to ${newKey}`);
+        console.log(`  🗺️ Map key updated from ${prev} to ${newKey} - markers will recalculate`);
         return newKey;
       });
     }
-  }, [activeContacts, locationMarkers.length]);
+  }, [activeContacts]);
 
   // ============================================================================
   // LEAFLET SETUP
