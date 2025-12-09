@@ -270,30 +270,8 @@ export default function ChroniclePage() {
               updateDataJSON: JSON.stringify(updateData)
             });
             
-            // CRITICAL: Create a NEW object and EXPLICITLY include notes field
-            // ALWAYS use imported.notes if it exists (even if empty string), otherwise use existing notes
-            let notesToUse: string | undefined = undefined;
-            
-            if (imported.notes !== undefined && imported.notes !== null) {
-              // Imported file has notes field - use it (even if empty, it's explicitly set)
-              if (imported.notes.trim().length > 0) {
-                notesToUse = imported.notes;
-                console.log(`    ✅ USING IMPORTED NOTES: "${notesToUse.substring(0, 60)}..."`);
-              } else if (existing.notes && existing.notes.trim()) {
-                // Imported has empty notes, but existing has notes - keep existing
-                notesToUse = existing.notes;
-                console.log(`    ℹ️ Imported notes empty, keeping existing: "${notesToUse.substring(0, 60)}..."`);
-              } else {
-                // Both empty, leave undefined
-                console.log(`    ⚠️ Both imported and existing notes are empty`);
-              }
-            } else if (existing.notes) {
-              // Imported has no notes field, keep existing
-              notesToUse = existing.notes;
-              console.log(`    ℹ️ No imported notes, keeping existing: "${notesToUse.substring(0, 60)}..."`);
-            }
-            
-            // Build contactToUpdate with ALL fields explicitly
+            // SIMPLIFIED APPROACH: Build contactToUpdate and ALWAYS include notes if imported has it
+            // This is the single source of truth - use imported.notes directly if it exists
             const contactToUpdate: Partial<Contact> = {
               id: existing.id,
               firstName: updateData.firstName || existing.firstName,
@@ -306,40 +284,60 @@ export default function ChroniclePage() {
               source: updateData.source ?? existing.source,
             };
             
-            // EXPLICITLY set notes field - this is the most critical part
-            if (notesToUse !== undefined) {
-              contactToUpdate.notes = notesToUse;
-              console.log(`    ✅✅✅ FINAL: contactToUpdate.notes = "${notesToUse.substring(0, 60)}..."`);
-            } else {
-              console.log(`    ⚠️ FINAL: contactToUpdate.notes will be undefined`);
-            }
-            
-            // Verify notes is in the object before pushing
-            if ('notes' in contactToUpdate && contactToUpdate.notes) {
-              console.log(`    ✅ VERIFIED: contactToUpdate has notes field: "${contactToUpdate.notes.substring(0, 50)}..."`);
-            } else {
-              console.error(`    ❌❌❌ ERROR: contactToUpdate is missing notes field!`);
-              console.error(`      Object keys:`, Object.keys(contactToUpdate));
-              console.error(`      Full object:`, JSON.stringify(contactToUpdate, null, 2));
-              // Last resort: force add notes if imported has them
-              if (imported.notes && imported.notes.trim()) {
+            // CRITICAL: ALWAYS set notes if imported has it (even if empty string)
+            // Check if 'notes' key exists in imported object (even if value is empty/null)
+            if ('notes' in imported) {
+              // Imported file explicitly has notes field - use it
+              if (imported.notes && imported.notes.trim().length > 0) {
                 contactToUpdate.notes = imported.notes;
-                console.error(`    🔧🔧🔧 FORCE ADDED notes as last resort:`, contactToUpdate.notes);
+                console.log(`    ✅✅✅ SET notes from imported (has content): "${imported.notes.substring(0, 60)}..."`);
+              } else if (existing.notes && existing.notes.trim()) {
+                // Imported notes is empty/null, but existing has notes - keep existing
+                contactToUpdate.notes = existing.notes;
+                console.log(`    ℹ️ Imported notes empty, keeping existing: "${existing.notes.substring(0, 60)}..."`);
+              } else {
+                // Both empty, set to empty string to preserve field
+                contactToUpdate.notes = imported.notes || '';
+                console.log(`    ⚠️ Both notes empty, setting to empty string`);
               }
+            } else {
+              // Imported has no notes field at all - keep existing if it exists
+              if (existing.notes) {
+                contactToUpdate.notes = existing.notes;
+                console.log(`    ℹ️ No imported notes field, keeping existing: "${existing.notes.substring(0, 60)}..."`);
+              }
+              // If neither has notes, don't set the field (undefined)
             }
             
-            console.log(`    🔍 VERIFY contactToUpdate object:`, {
+            // FINAL VERIFICATION: Log the object that will be pushed
+            console.log(`    🔍 FINAL contactToUpdate object:`, {
               hasNotesKey: 'notes' in contactToUpdate,
-              notesValue: contactToUpdate.notes || 'MISSING',
+              notesValue: contactToUpdate.notes !== undefined ? `"${(contactToUpdate.notes || '').substring(0, 50)}..."` : 'UNDEFINED',
               notesType: typeof contactToUpdate.notes,
               allKeys: Object.keys(contactToUpdate),
-              contactToUpdateJSON: JSON.stringify(contactToUpdate)
             });
             
-            if (!contactToUpdate.notes && hasImportedNotes) {
-              console.error(`    ❌❌❌ CRITICAL: contactToUpdate missing notes even though imported has them!`);
+            // Last resort check: if imported has notes but contactToUpdate doesn't, force add
+            if (hasImportedNotes && (!contactToUpdate.notes || !contactToUpdate.notes.trim())) {
+              console.error(`    ❌❌❌ CRITICAL: Imported has notes but contactToUpdate missing them!`);
+              console.error(`      Imported notes: "${imported.notes}"`);
+              console.error(`      contactToUpdate.notes:`, contactToUpdate.notes);
               contactToUpdate.notes = imported.notes!;
-              console.error(`    🔧 FORCE ADDED notes to contactToUpdate:`, contactToUpdate.notes);
+              console.error(`    🔧🔧🔧 FORCE ADDED notes: "${contactToUpdate.notes.substring(0, 50)}..."`);
+            }
+            
+            // JSON.stringify to see exact object structure
+            const contactToUpdateJSON = JSON.stringify(contactToUpdate);
+            if (!contactToUpdateJSON.includes('notes')) {
+              console.error(`    ❌❌❌ JSON VERIFICATION FAILED: contactToUpdate JSON missing 'notes' key!`);
+              console.error(`      JSON:`, contactToUpdateJSON);
+              // Force add notes one more time
+              if (imported.notes) {
+                contactToUpdate.notes = imported.notes;
+                console.error(`    🔧🔧🔧 FORCE ADDED notes after JSON check`);
+              }
+            } else {
+              console.log(`    ✅ JSON VERIFICATION PASSED: contactToUpdate has 'notes' key`);
             }
             
             contactsToUpdate.push({
@@ -441,7 +439,14 @@ export default function ChroniclePage() {
         // Apply all updates at once using batch update function
         // This ensures all updates happen in a single state change and notes are preserved
         if (contactsToUpdate.length > 0) {
+          // Log first few contacts to verify notes are in the objects
           console.log(`\n🔄 Using batch update for ${contactsToUpdate.length} contacts`);
+          console.log(`📋 First 3 contacts to update:`, contactsToUpdate.slice(0, 3).map(u => ({
+            id: u.id,
+            name: `${u.contact.firstName} ${u.contact.lastName}`,
+            hasNotes: 'notes' in u.contact,
+            notesPreview: u.contact.notes ? u.contact.notes.substring(0, 50) : 'none'
+          })));
           updateMultipleContacts(contactsToUpdate);
         }
         
