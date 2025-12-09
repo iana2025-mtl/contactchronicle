@@ -230,13 +230,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return dateA.getTime() - dateB.getTime();
       });
       
-      // Dispatch event for map page to detect changes
+      // Dispatch event for map page to detect changes immediately
       if (user && isDataLoaded) {
+        // Dispatch immediately for instant updates
+        window.dispatchEvent(new CustomEvent('timelineUpdated', {
+          detail: { timelineEvents: updated, timestamp: Date.now() }
+        }));
+        // Also dispatch after delay as backup
         setTimeout(() => {
           window.dispatchEvent(new CustomEvent('timelineUpdated', {
             detail: { timelineEvents: updated, timestamp: Date.now() }
           }));
-        }, 100);
+        }, 50);
       }
       
       return updated;
