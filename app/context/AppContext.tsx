@@ -225,6 +225,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateContact = (id: string, contact: Partial<Contact>) => {
+    // CRITICAL: If update doesn't include notes, AND existing contact has notes,
+    // this is likely a partial update that should NOT clear notes
+    const existingContact = contacts.find(c => c.id === id);
+    const existingHasNotes = existingContact?.notes && existingContact.notes.trim().length > 0;
+    const updateHasNotes = contact.notes !== undefined && contact.notes !== null && contact.notes !== '';
+    const updateHasNotesKey = 'notes' in contact;
+    
+    // If existing contact has notes but update doesn't include them, preserve existing notes
+    if (existingHasNotes && !updateHasNotes && !updateHasNotesKey) {
+      // This is a partial update that should preserve notes
+      // Explicitly add notes to the update object
+      contact = { ...contact, notes: existingContact.notes };
+      console.log(`🔒 PRESERVING existing notes for ${id} during partial update`);
+    }
+    
     // Log stack trace to see WHERE this is being called from
     console.log('📝 CONTEXT: updateContact called');
     console.log(`  - Contact ID: ${id}`);
@@ -239,8 +254,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.log(`  - contact object:`, JSON.stringify(contact, null, 2));
     }
     
-    // Find the existing contact
-    const existingContact = contacts.find(c => c.id === id);
     if (existingContact) {
       console.log(`  - Existing contact notes: "${existingContact.notes || 'none'}"`);
     }

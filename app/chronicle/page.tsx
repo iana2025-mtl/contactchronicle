@@ -624,10 +624,22 @@ export default function ChroniclePage() {
           
           console.error(`📋 FINAL VERIFICATION: ${finalVerification.length} contacts have notes before batch update`);
           
-          updateMultipleContacts(contactsToUpdate);
-          
-          // Alert after batch update call
-          window.alert(`✅ Batch update function called! Check console for results.`);
+          // Actually call the batch update function
+          try {
+            updateMultipleContacts(contactsToUpdate);
+            console.error(`✅✅✅ updateMultipleContacts CALLED SUCCESSFULLY`);
+            
+            // Alert after batch update call
+            window.alert(
+              `✅ Batch update executed!\n\n` +
+              `- Function was called\n` +
+              `- Check console for batch update logs\n\n` +
+              `After closing this, click "🔍 Check Data" to verify notes were saved.`
+            );
+          } catch (error) {
+            console.error(`❌❌❌ ERROR calling updateMultipleContacts:`, error);
+            window.alert(`❌ ERROR: Failed to execute batch update!\n\n${error}`);
+          }
         }
         
         // Add new contacts
