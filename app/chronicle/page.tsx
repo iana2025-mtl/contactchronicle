@@ -455,32 +455,57 @@ export default function ChroniclePage() {
             `Click OK to execute batch update...`
           );
           
-          // CRITICAL: Verify EVERY contact object has notes if imported had notes
+          // CRITICAL: Verify and FORCE-FIX EVERY contact object to have notes if imported had notes
           let verifiedCount = 0;
-          contactsToUpdate.forEach(({ id, contact }) => {
+          let fixedCount = 0;
+          
+          // Create a NEW array with fixed contact objects (don't mutate original)
+          const fixedContactsToUpdate = contactsToUpdate.map(({ id, contact }) => {
+            // Find the correct imported contact that matches
             const importedMatch = importedContacts.find(ic => {
-              // Match by ID, email, or name
-              return (ic.id === id) ||
-                     (ic.emailAddress && contact.emailAddress && ic.emailAddress.toLowerCase() === contact.emailAddress.toLowerCase()) ||
-                     (ic.firstName === contact.firstName && ic.lastName === contact.lastName);
+              // Match by ID first (most reliable)
+              if (ic.id === id) return true;
+              // Then by email
+              if (ic.emailAddress && contact.emailAddress && 
+                  ic.emailAddress.toLowerCase() === contact.emailAddress.toLowerCase()) return true;
+              // Then by name
+              if (ic.firstName === contact.firstName && ic.lastName === contact.lastName) return true;
+              return false;
             });
             
             if (importedMatch && importedMatch.notes && importedMatch.notes.trim()) {
-              // Imported has notes - verify contactToUpdate has it
+              // Imported has notes - ensure contact has it
               if (!contact.notes || !contact.notes.trim()) {
                 console.error(`❌ VERIFICATION FAILED: ${contact.firstName} ${contact.lastName} should have notes but doesn't!`);
                 console.error(`  Imported notes: "${importedMatch.notes}"`);
-                console.error(`  contactToUpdate keys:`, Object.keys(contact));
-                // FORCE ADD IT
-                contact.notes = importedMatch.notes;
+                console.error(`  contact keys before fix:`, Object.keys(contact));
+                
+                // Create a NEW contact object with notes explicitly included
+                const fixedContact = {
+                  ...contact,
+                  notes: importedMatch.notes // Explicitly add notes
+                };
+                
                 console.error(`  🔧 FORCE ADDED notes to contact object`);
+                console.error(`  Fixed contact keys:`, Object.keys(fixedContact));
+                console.error(`  Fixed contact has notes:`, !!fixedContact.notes);
+                fixedCount++;
+                
+                return { id, contact: fixedContact };
               } else {
                 verifiedCount++;
+                // Even if notes exist, ensure they're explicitly in the object
+                return { id, contact: { ...contact, notes: contact.notes } };
               }
             }
+            // No notes to add, return as-is
+            return { id, contact };
           });
           
-          console.log(`✅ Verified ${verifiedCount} contacts have notes matching imported data`);
+          console.log(`✅ Verified ${verifiedCount} contacts already have notes, fixed ${fixedCount} contacts`);
+          
+          // Use the fixed array for batch update
+          contactsToUpdate = fixedContactsToUpdate;
           
           // Log first few contacts to verify notes are in the objects
           console.log(`\n🔄 Using batch update for ${contactsToUpdate.length} contacts`);
