@@ -118,7 +118,41 @@ export default function MapPage() {
 
   useEffect(() => {
     setIsClient(true);
-  }, []);
+    
+    // CRITICAL: When page becomes visible, check localStorage for updates
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user) {
+        console.log('🔔 MAP PAGE: Page became visible - checking for updates');
+        const contactsKey = `contactChronicle_contacts_${user.id}`;
+        const stored = localStorage.getItem(contactsKey);
+        if (stored) {
+          try {
+            const storedContacts: Contact[] = JSON.parse(stored);
+            const storedHash = storedContacts.map(c => 
+              `${c.id}:${c.firstName}:${c.lastName}:${c.notes || ''}`
+            ).join('|');
+            
+            const currentHash = contacts.map(c => 
+              `${c.id}:${c.firstName}:${c.lastName}:${c.notes || ''}`
+            ).join('|');
+            
+            if (storedHash !== currentHash) {
+              console.log('🔔 MAP PAGE: Visibility change detected localStorage differs - forcing update!');
+              setMapKey(prev => prev + 1);
+            }
+          } catch (error) {
+            // Ignore parse errors
+          }
+        }
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user, contacts]);
 
   // CRITICAL: Listen for contacts updates via custom event and localStorage
   useEffect(() => {
