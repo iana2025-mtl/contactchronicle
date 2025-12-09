@@ -132,17 +132,29 @@ export default function MapPage() {
         if (stored) {
           try {
             const storedContacts: Contact[] = JSON.parse(stored);
-            const storedHash = storedContacts.map(c => 
-              `${c.id}:${c.firstName}:${c.lastName}:${c.notes || ''}`
-            ).join('|');
+            const storedWithNotes = storedContacts.filter(c => c.notes && c.notes.trim());
             
-            const currentHash = contacts.map(c => 
-              `${c.id}:${c.firstName}:${c.lastName}:${c.notes || ''}`
-            ).join('|');
+            // Create comprehensive hash including full notes content
+            const storedHash = storedContacts.map(c => {
+              const notesContent = c.notes || '';
+              return `${c.id}:${c.firstName}:${c.lastName}:${notesContent}:${c.dateAdded || ''}`;
+            }).join('|');
+            
+            const currentHash = contacts.map(c => {
+              const notesContent = c.notes || '';
+              return `${c.id}:${c.firstName}:${c.lastName}:${notesContent}:${c.dateAdded || ''}`;
+            }).join('|');
+            
+            console.log(`  📊 Stored contacts with notes: ${storedWithNotes.length}`);
+            console.log(`  📊 Current contacts with notes: ${contacts.filter(c => c.notes && c.notes.trim()).length}`);
+            console.log(`  📊 Hash comparison - Stored length: ${storedHash.length}, Current length: ${currentHash.length}`);
             
             if (storedHash !== currentHash) {
               console.log('🔔 MAP PAGE: Visibility change detected localStorage differs - forcing update!');
+              console.log(`  📊 Hash mismatch detected - stored and current contacts differ`);
               setMapKey(prev => prev + 1);
+            } else {
+              console.log('  ✅ Hashes match - no update needed');
             }
           } catch (error) {
             console.error('Error checking visibility:', error);
@@ -153,7 +165,7 @@ export default function MapPage() {
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
-    // Initial load check
+    // Initial load check - force update if notes exist
     const initialCheckTimeout = setTimeout(() => {
       if (user) {
         console.log('🔔 MAP PAGE: Initial load check - verifying contacts data');
@@ -167,10 +179,15 @@ export default function MapPage() {
             if (storedWithNotes.length > 0) {
               console.log('  📝 Sample notes:', storedWithNotes.slice(0, 3).map(c => ({
                 name: `${c.firstName} ${c.lastName}`,
+                notesLength: c.notes?.length || 0,
                 notes: c.notes?.substring(0, 100)
               })));
-              // Force update to ensure map shows all locations
-              setMapKey(prev => prev + 1);
+              // Force update to ensure map shows all locations from stored data
+              setMapKey(prev => {
+                const newKey = prev + 1;
+                console.log(`  🗺️ Initial check: Map key updated to ${newKey} to load locations from localStorage`);
+                return newKey;
+              });
             }
           } catch (error) {
             console.error('Error in initial check:', error);
