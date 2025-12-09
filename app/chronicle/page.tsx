@@ -144,10 +144,10 @@ export default function ChroniclePage() {
         
         // Try email if ID didn't match
         if (!existing && imported.emailAddress && imported.emailAddress.trim()) {
+          const importedEmail = imported.emailAddress.toLowerCase().trim();
           existing = currentContacts.find(c => 
             c.emailAddress && 
-            imported.emailAddress &&
-            c.emailAddress.toLowerCase().trim() === imported.emailAddress.toLowerCase().trim()
+            c.emailAddress.toLowerCase().trim() === importedEmail
           );
         }
         
