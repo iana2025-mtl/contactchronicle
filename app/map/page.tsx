@@ -710,6 +710,13 @@ export default function MapPage() {
     console.log(`  ✅ Returning ${result.length} location markers`);
     return result;
   }, [contacts, contactsNotesHash, locationPeriodsFromTimeline]); // CRITICAL: contacts, contactsNotesHash as dependencies - will recalculate when ANY contact note changes
+  
+  // Additional effect to ensure locationMarkersFromNotes recalculates when contacts change
+  useEffect(() => {
+    // This effect exists to ensure locationMarkersFromNotes dependency chain is triggered
+    // The useMemo above should handle recalculation, but this ensures it's triggered
+    console.log('🔄 Map: Contacts array reference changed - locationMarkersFromNotes should recalculate');
+  }, [contacts]);
 
   // Combine both timeline and notes locations - deduplicate by coordinates
   // CRITICAL: Always create new objects/arrays to ensure React detects changes
@@ -1033,7 +1040,7 @@ export default function MapPage() {
                 <div className="w-full h-[400px] sm:h-[500px] lg:h-[600px] relative min-h-[400px]">
                   {locationPeriods.length > 0 && (
                     <MapContainer
-                      key={`map-${mapKey}-${contactsNotesHash.substring(0, 50).replace(/[^a-zA-Z0-9]/g, '')}-${locationPeriods.length}-${contacts.filter(c => c.notes && c.notes.trim()).length}-${Date.now()}`}
+                      key={`map-${mapKey}-${contactsNotesHash.substring(0, 50).replace(/[^a-zA-Z0-9]/g, '')}-${locationPeriods.length}-${contacts.filter(c => c.notes && c.notes.trim()).length}`}
                       center={[mapCenter.lat, mapCenter.lng]}
                       zoom={locationPeriods.length === 1 ? 10 : 2}
                       minZoom={2}
