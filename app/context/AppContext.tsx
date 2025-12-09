@@ -250,13 +250,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Create a COMPLETELY NEW array (not just mapped, but spread to ensure new reference)
     const updatedContacts = [...contacts.map(c => {
       if (c.id === id) {
-        // CRITICAL: Preserve notes field explicitly - don't let undefined overwrite existing notes
-        const updated = { 
-          ...c, 
-          ...contact,
-          // Explicitly preserve notes if it's in the contact update, otherwise keep existing
-          notes: contact.notes !== undefined ? contact.notes : c.notes
-        };
+        // CRITICAL: Preserve notes - don't let undefined/null overwrite existing notes
+        // First, check if update has notes field (even if value is undefined)
+        const updateHasNotesKey = 'notes' in contact;
+        const updateHasNotesValue = contact.notes !== undefined && contact.notes !== null && contact.notes !== '';
+        
+        // Build updated contact, being very careful about notes field
+        let updated: Contact;
+        if (updateHasNotesKey && updateHasNotesValue) {
+          // Update has notes with value - use it
+          updated = { 
+            ...c, 
+            ...contact,
+            notes: contact.notes,
+            id: c.id // Always preserve original ID
+          };
+        } else if (updateHasNotesKey && contact.notes === '') {
+          // Update explicitly sets notes to empty string - clear it
+          updated = { 
+            ...c, 
+            ...contact,
+            notes: '',
+            id: c.id
+          };
+        } else {
+          // Update doesn't have notes or has undefined/null - preserve existing notes
+          const { notes, ...contactWithoutNotes } = contact; // Remove notes from spread
+          updated = { 
+            ...c, 
+            ...contactWithoutNotes,
+            notes: c.notes, // Explicitly preserve existing notes
+            id: c.id // Always preserve original ID
+          };
+        }
         console.log(`  - Merged contact object:`, updated);
         console.log(`  - Contact update had notes:`, contact.notes ? `"${contact.notes.substring(0, 50)}..."` : 'NO');
         console.log(`  - Original contact had notes:`, c.notes ? `"${c.notes.substring(0, 50)}..."` : 'NO');
