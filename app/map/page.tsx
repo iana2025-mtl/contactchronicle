@@ -762,6 +762,51 @@ export default function MapPage() {
     return [...combined];
   }, [locationPeriodsFromTimeline, locationMarkersFromNotes]);
 
+  // Calculate map center (must be before useEffect that uses it)
+  const mapCenter = useMemo(() => {
+    if (locationPeriods.length === 0) {
+      return { lat: 39.8283, lng: -98.5795 };
+    }
+    
+    const avgLat = locationPeriods.reduce((sum, p) => sum + p.coordinates.lat, 0) / locationPeriods.length;
+    const avgLng = locationPeriods.reduce((sum, p) => sum + p.coordinates.lng, 0) / locationPeriods.length;
+    
+    return { lat: avgLat, lng: avgLng };
+  }, [locationPeriods]);
+
+  // Calculate bounds (must be before useEffect that uses it)
+  const mapBounds = useMemo(() => {
+    if (locationPeriods.length === 0) return null;
+    
+    const lats = locationPeriods.map(p => p.coordinates.lat);
+    const lngs = locationPeriods.map(p => p.coordinates.lng);
+    
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+    const minLng = Math.min(...lngs);
+    const maxLng = Math.max(...lngs);
+    
+    const latSpan = maxLat - minLat;
+    const lngSpan = maxLng - minLng;
+    
+    const isWorldwide = lngSpan > 50 || latSpan > 50;
+    const latPadding = Math.max(latSpan * 0.20, isWorldwide ? 5 : 2);
+    const lngPadding = Math.max(lngSpan * 0.20, isWorldwide ? 10 : 2);
+    
+    const bounds = [
+      [minLat - latPadding, minLng - lngPadding],
+      [maxLat + latPadding, maxLng + lngPadding]
+    ] as [[number, number], [number, number]];
+    
+    console.log(`🗺️ Map bounds calculated for ${locationPeriods.length} locations:`, {
+      bounds,
+      isWorldwide,
+      span: { lat: latSpan, lng: lngSpan }
+    });
+    
+    return bounds;
+  }, [locationPeriods]);
+
   // Log location periods updates
   useEffect(() => {
     console.log(`🗺️ ===== LOCATION PERIODS UPDATED =====`);
@@ -781,7 +826,7 @@ export default function MapPage() {
     console.log(`🗺️ ====================================`);
   }, [locationPeriods, mapKey, contacts, timelineEvents]);
 
-  // Fit map bounds when locations or mapReady changes
+  // Fit map bounds when locations or mapReady changes (must be after mapBounds declaration)
   useEffect(() => {
     if (!mapReady || !locationPeriods.length || !mapBounds) return;
     
@@ -841,51 +886,6 @@ export default function MapPage() {
     
     return () => clearTimeout(fitBoundsTimeout);
   }, [mapReady, locationPeriods, mapBounds]);
-
-  // Calculate map center
-  const mapCenter = useMemo(() => {
-    if (locationPeriods.length === 0) {
-      return { lat: 39.8283, lng: -98.5795 };
-    }
-    
-    const avgLat = locationPeriods.reduce((sum, p) => sum + p.coordinates.lat, 0) / locationPeriods.length;
-    const avgLng = locationPeriods.reduce((sum, p) => sum + p.coordinates.lng, 0) / locationPeriods.length;
-    
-    return { lat: avgLat, lng: avgLng };
-  }, [locationPeriods]);
-
-  // Calculate bounds
-  const mapBounds = useMemo(() => {
-    if (locationPeriods.length === 0) return null;
-    
-    const lats = locationPeriods.map(p => p.coordinates.lat);
-    const lngs = locationPeriods.map(p => p.coordinates.lng);
-    
-    const minLat = Math.min(...lats);
-    const maxLat = Math.max(...lats);
-    const minLng = Math.min(...lngs);
-    const maxLng = Math.max(...lngs);
-    
-    const latSpan = maxLat - minLat;
-    const lngSpan = maxLng - minLng;
-    
-    const isWorldwide = lngSpan > 50 || latSpan > 50;
-    const latPadding = Math.max(latSpan * 0.20, isWorldwide ? 5 : 2);
-    const lngPadding = Math.max(lngSpan * 0.20, isWorldwide ? 10 : 2);
-    
-    const bounds = [
-      [minLat - latPadding, minLng - lngPadding],
-      [maxLat + latPadding, maxLng + lngPadding]
-    ] as [[number, number], [number, number]];
-    
-    console.log(`🗺️ Map bounds calculated for ${locationPeriods.length} locations:`, {
-      bounds,
-      isWorldwide,
-      span: { lat: latSpan, lng: lngSpan }
-    });
-    
-    return bounds;
-  }, [locationPeriods]);
 
   if (!isClient) {
     return (
