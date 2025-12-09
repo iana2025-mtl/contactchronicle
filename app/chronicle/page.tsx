@@ -207,12 +207,39 @@ export default function ChroniclePage() {
         u.contact.notes && typeof u.contact.notes === 'string' && u.contact.notes.trim().length > 0
       );
 
+      // CRITICAL: Show detailed breakdown
+      const sampleUpdatesWithNotes = updates.filter(u => u.contact.notes && u.contact.notes.trim()).slice(0, 3);
+      const sampleText = sampleUpdatesWithNotes.map(u => 
+        `${u.contact.firstName} ${u.contact.lastName}: "${u.contact.notes?.substring(0, 30)}..."`
+      ).join('\n');
+      
       alert(
         `🔄 IMPORT READY\n` +
         `- Updates: ${updates.length} (${updatesWithNotes.length} with notes)\n` +
         `- New contacts: ${newContacts.length}\n\n` +
+        `${updatesWithNotes.length > 0 ? `Sample updates with notes:\n${sampleText}\n\n` : '⚠️ WARNING: NO UPDATES HAVE NOTES!\n\n'}` +
         `Click OK to apply changes...`
       );
+      
+      // CRITICAL: Verify notes are actually in update objects
+      if (updatesWithNotes.length === 0 && importedWithNotes.length > 0) {
+        console.error(`❌❌❌ CRITICAL: ${importedWithNotes.length} contacts in file have notes, but ${updatesWithNotes.length} updates have notes!`);
+        console.error(`This means notes were lost during the matching/update object creation.`);
+        console.error(`Sample imported contacts with notes:`, importedWithNotes.slice(0, 3).map(c => ({
+          name: `${c.firstName} ${c.lastName}`,
+          notes: c.notes,
+          id: c.id
+        })));
+        
+        alert(
+          `⚠️ CRITICAL ISSUE DETECTED!\n\n` +
+          `File has ${importedWithNotes.length} contacts with notes\n` +
+          `But only ${updatesWithNotes.length} updates have notes\n\n` +
+          `This means notes were lost during processing!\n` +
+          `Check console for details.\n\n` +
+          `Continuing anyway...`
+        );
+      }
 
       // Apply updates using batch update
       if (updates.length > 0) {
@@ -254,11 +281,23 @@ export default function ChroniclePage() {
         );
 
         console.error(`🚨🚨🚨 CALLING BATCH UPDATE WITH ${verifiedUpdates.length} UPDATES 🚨🚨🚨`);
-        console.error(`Updates with notes: ${updatesWithNotes.length}`);
+        console.error(`Updates with notes BEFORE verification: ${updatesWithNotes.length}`);
+        
+        const verifiedWithNotes = verifiedUpdates.filter(u => u.contact.notes && u.contact.notes.trim());
+        console.error(`Updates with notes AFTER verification: ${verifiedWithNotes.length}`);
+        
+        // ALERT before calling batch update
+        alert(
+          `🚨 ABOUT TO CALL updateMultipleContacts\n\n` +
+          `Total updates: ${verifiedUpdates.length}\n` +
+          `Updates with notes: ${verifiedWithNotes.length}\n\n` +
+          `${verifiedWithNotes.length > 0 ? `First update with notes:\n${verifiedWithNotes[0].contact.firstName} ${verifiedWithNotes[0].contact.lastName}: "${verifiedWithNotes[0].contact.notes?.substring(0, 40)}..."` : '❌ NO UPDATES HAVE NOTES!'}\n\n` +
+          `Click OK to execute batch update...`
+        );
         
         updateMultipleContacts(verifiedUpdates);
         
-        alert(`✅ updateMultipleContacts CALLED!\n\nCheck console and then click "🔍 Check Data" to verify.`);
+        alert(`✅ updateMultipleContacts EXECUTED!\n\nFunction was called.\nNow wait 2 seconds, then click "🔍 Check Data" to verify notes were saved.`);
       }
 
       // Add new contacts
