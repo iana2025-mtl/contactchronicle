@@ -44,6 +44,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const batchUpdateInProgressRef = useRef(false);
 
   const initializeTimelineData = () => {
     const timestamp = Date.now();
@@ -158,7 +159,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [timelineEvents, user, isDataLoaded]);
 
   useEffect(() => {
-    if (user && isDataLoaded) {
+    if (user && isDataLoaded && !batchUpdateInProgressRef.current) {
       const contactsKey = `contactChronicle_contacts_${user.id}`;
       try {
         // Log before saving to verify notes are in the contacts array
@@ -376,6 +377,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     console.error(`📦 BATCH UPDATE: Updating ${updates.length} contacts`);
     console.error(`Using console.error so it won't be filtered\n`);
     
+    // Set flag to prevent auto-save useEffect from interfering
+    batchUpdateInProgressRef.current = true;
+    
     // Create update map for faster lookup
     const updateMap = new Map<string, Partial<Contact>>();
     updates.forEach(({ id, contact }) => {
@@ -554,6 +558,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error('Error saving batch update:', error);
       }
+      
+      // Clear flag after a delay to allow auto-save to work again
+      setTimeout(() => {
+        batchUpdateInProgressRef.current = false;
+      }, 100);
     }
   };
 
