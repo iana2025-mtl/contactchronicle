@@ -64,11 +64,18 @@ export default function ChroniclePage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // ALERT immediately to confirm import started
+    alert(`📤 IMPORT STARTED\nReading file: ${file.name}\nSize: ${(file.size / 1024).toFixed(2)} KB`);
+
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const fileContent = e.target?.result as string;
         console.log(`📥 FILE READ: ${fileContent.length} characters`);
+        
+        // Check raw file content for notes before parsing
+        const notesInRawFile = (fileContent.match(/"notes":\s*"[^"]+"/g) || []).length;
+        alert(`📥 FILE PARSING\nFile size: ${fileContent.length} chars\nFound "${notes": "..." strings: ${notesInRawFile}`);
         
         const importedContacts: Contact[] = JSON.parse(fileContent);
         
