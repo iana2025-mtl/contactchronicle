@@ -201,6 +201,8 @@ export default function MapPage() {
             // Update local state with new array reference
             setLocalContacts([...storedContacts]);
             lastStorageCheckRef.current = storedHash;
+            // Also update the hash ref used by the useEffect watcher
+            lastContactsHashRef.current = storedHash;
             
             // Force map recalculation
             console.log(`  🗺️ Forcing map recalculation (mapKey increment)`);
@@ -821,6 +823,20 @@ export default function MapPage() {
       }))
     );
 
+    // Initialize on first run
+    if (lastContactsHashRef.current === '') {
+      lastContactsHashRef.current = contactsHash;
+      // Don't skip first run if we have contacts - we want to show them
+      if (activeContacts.length > 0) {
+        console.log('🔄 MAP: Initial contacts detected - rendering map');
+        const contactsWithNotes = activeContacts.filter(c => c.notes && c.notes.trim());
+        console.log(`  📊 Total contacts: ${activeContacts.length}`);
+        console.log(`  📊 Contacts with notes: ${contactsWithNotes.length}`);
+        setMapKey(prev => prev + 1);
+      }
+      return;
+    }
+
     if (contactsHash !== lastContactsHashRef.current) {
       console.log('🔄 MAP: Contacts data changed - forcing map update');
       const contactsWithNotes = activeContacts.filter(c => c.notes && c.notes.trim());
@@ -862,7 +878,15 @@ export default function MapPage() {
     // Compare with previous hash (initialize on first run)
     if (lastTimelineWatchHashRef.current === '') {
       lastTimelineWatchHashRef.current = timelineHash;
-      return; // Skip first run
+      // Don't skip first run if we have timeline events - we want to show them
+      if (activeTimelineEvents.length > 0) {
+        console.log('🔄 MAP: Initial timeline events detected - rendering map');
+        const geoEvents = activeTimelineEvents.filter(e => e.geographicEvent && e.geographicEvent.trim());
+        console.log(`  📊 Total timeline events: ${activeTimelineEvents.length}`);
+        console.log(`  🌍 Geographic events: ${geoEvents.length}`);
+        setMapKey(prev => prev + 1);
+      }
+      return;
     }
 
     if (timelineHash !== lastTimelineWatchHashRef.current) {
