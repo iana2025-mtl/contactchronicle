@@ -180,6 +180,10 @@ export default function MapPage() {
   const userInteractedRef = useRef(false); // Track if user manually zoomed/panned
   const fitBoundsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastMarkersHashRef = useRef<string>('');
+  const geocodingQueueRef = useRef<Array<{ cityName: string; resolve: (value: any) => void; reject: (error: any) => void }>>([]);
+  const isGeocodingRef = useRef(false);
+  const lastGeocodeTimeRef = useRef<number>(0);
+  const rateLimitDelayRef = useRef<number>(1000); // Start with 1 second delay
 
   // ============================================================================
   // REACTIVE DATA SYNC: Direct localStorage sync ensures real-time updates
@@ -451,10 +455,45 @@ export default function MapPage() {
     return cleaned;
   }, []);
 
-  // Geocode city using Next.js API route (fixes CORS issue)
-  const geocodeCity = useCallback(async (cityName: string): Promise<{ lat: number; lng: number; displayName: string } | null> => {
-    if (!cityName?.trim()) return null;
+  // Process geocoding queue with rate limiting
+  const processGeocodingQueue = useCallback(async () => {
+    if (isGeocodingRef.current || geocodingQueueRef.current.length === 0) {
+      return;
+    }
 
+    isGeocodingRef.current = true;
+
+    while (geocodingQueueRef.current.length > 0) {
+      const now = Date.now();
+      const timeSinceLastRequest = now - lastGeocodeTimeRef.current;
+      
+      // Wait if needed to respect rate limits (min 1 second between requests)
+      if (timeSinceLastRequest < rateLimitDelayRef.current) {
+        await new Promise(resolve => setTimeout(resolve, rateLimitDelayRef.current - timeSinceLastRequest));
+      }
+
+      const { cityName, resolve, reject } = geocodingQueueRef.current.shift()!;
+      
+      try {
+        const result = await performGeocoding(cityName);
+        lastGeocodeTimeRef.current = Date.now();
+        
+        // On success, reset rate limit delay
+        if (result) {
+          rateLimitDelayRef.current = 1000;
+        }
+        
+        resolve(result);
+      } catch (error) {
+        reject(error);
+      }
+    }
+
+    isGeocodingRef.current = false;
+  }, []);
+
+  // Perform actual geocoding request
+  const performGeocoding = useCallback(async (cityName: string): Promise<{ lat: number; lng: number; displayName: string } | null> => {
     // Clean the city name first
     const cleanedCityName = cleanLocationName(cityName);
     if (!cleanedCityName) {
@@ -477,12 +516,48 @@ export default function MapPage() {
       
       const response = await fetch(url);
 
+      // Handle rate limiting (429) with exponential backoff
+      if (response.status === 429) {
+        // Increase delay exponentially (up to 10 seconds)
+        rateLimitDelayRef.current = Math.min(rateLimitDelayRef.current * 2, 10000);
+        console.warn(`⚠️ Rate limited (429). Increasing delay to ${rateLimitDelayRef.current}ms`);
+        
+        // Wait and retry once
+        await new Promise(resolve => setTimeout(resolve, rateLimitDelayRef.current));
+        const retryResponse = await fetch(url);
+        
+        if (!retryResponse.ok && retryResponse.status === 429) {
+          console.error(`❌ Still rate limited after retry for "${cleanedCityName}"`);
+          geocodingCacheRef.current.set(cleanedCityName, null);
+          geocodingCacheRef.current.set(cityName, null);
+          return null;
+        }
+        
+        // Process successful retry
+        const retryData = await retryResponse.json();
+        if (retryData.lat && retryData.lng) {
+          const coords = { 
+            lat: retryData.lat, 
+            lng: retryData.lng, 
+            displayName: retryData.displayName || cleanedCityName 
+          };
+          geocodingCacheRef.current.set(cleanedCityName, coords);
+          geocodingCacheRef.current.set(cityName, coords);
+          saveDynamicCity(cleanedCityName, coords);
+          console.log(`✅ Geocoded "${cityName}" → ${coords.displayName} at [${coords.lat}, ${coords.lng}] (after retry)`);
+          return coords;
+        }
+      }
+
       if (!response.ok) {
         // If 404, try with original name as fallback
         if (response.status === 404 && cleanedCityName !== cityName) {
           console.log(`⚠️ Geocoding failed for "${cleanedCityName}", trying original: "${cityName}"`);
           const encodedOriginal = encodeURIComponent(cityName);
           const fallbackUrl = `/api/geocode?city=${encodedOriginal}`;
+          
+          // Add delay before fallback request
+          await new Promise(resolve => setTimeout(resolve, rateLimitDelayRef.current));
           const fallbackResponse = await fetch(fallbackUrl);
           
           if (fallbackResponse.ok) {
@@ -496,6 +571,7 @@ export default function MapPage() {
               geocodingCacheRef.current.set(cityName, coords);
               geocodingCacheRef.current.set(cleanedCityName, coords);
               saveDynamicCity(cleanedCityName, coords);
+              lastGeocodeTimeRef.current = Date.now();
               return coords;
             }
           }
@@ -531,6 +607,7 @@ export default function MapPage() {
         saveDynamicCity(cleanedCityName, coords);
         
         console.log(`✅ Geocoded "${cityName}" → ${coords.displayName} at [${coords.lat}, ${coords.lng}]`);
+        lastGeocodeTimeRef.current = Date.now();
         return coords;
       } else {
         console.warn(`⚠️ No geocoding results for "${cleanedCityName}"`);
@@ -545,6 +622,32 @@ export default function MapPage() {
       return null;
     }
   }, [saveDynamicCity, cleanLocationName]);
+
+  // Geocode city using queue system with rate limiting
+  const geocodeCity = useCallback(async (cityName: string): Promise<{ lat: number; lng: number; displayName: string } | null> => {
+    if (!cityName?.trim()) return null;
+
+    // Clean the city name first
+    const cleanedCityName = cleanLocationName(cityName);
+    if (!cleanedCityName) {
+      console.warn(`⚠️ City name became empty after cleaning: "${cityName}"`);
+      return null;
+    }
+
+    // Check cache first (with both original and cleaned name)
+    if (geocodingCacheRef.current.has(cleanedCityName)) {
+      return geocodingCacheRef.current.get(cleanedCityName) || null;
+    }
+    if (geocodingCacheRef.current.has(cityName)) {
+      return geocodingCacheRef.current.get(cityName) || null;
+    }
+
+    // Add to queue and process
+    return new Promise((resolve, reject) => {
+      geocodingQueueRef.current.push({ cityName, resolve, reject });
+      processGeocodingQueue();
+    });
+  }, [processGeocodingQueue, cleanLocationName]);
 
   // ============================================================================
   // UTILITY FUNCTIONS: Coordinate lookup and validation
