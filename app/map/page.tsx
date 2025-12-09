@@ -747,8 +747,12 @@ export default function MapPage() {
 
     // Step 1: Exact match (highest priority)
     if (allCityCoordinates[normalizedLookup]) {
-      const coords = allCityCoordinates[normalized];
-      // Validate coordinates
+      const coords = allCityCoordinates[normalizedLookup];
+      // Validate coordinates exist and are valid
+      if (!coords || typeof coords.lat !== 'number' || typeof coords.lng !== 'number') {
+        console.error(`❌ Invalid coordinates object for "${cityName}"`);
+        return null;
+      }
       if (coords.lat < -90 || coords.lat > 90 || coords.lng < -180 || coords.lng > 180) {
         console.error(`❌ Invalid coordinates for "${cityName}": [${coords.lat}, ${coords.lng}]`);
         return null;
