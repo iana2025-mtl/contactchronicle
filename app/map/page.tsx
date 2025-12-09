@@ -83,6 +83,11 @@ const cityCoordinates: Record<string, { lat: number; lng: number }> = {
   'berlin': { lat: 52.5200, lng: 13.4050 },
   'berlin, germany': { lat: 52.5200, lng: 13.4050 },
   'germany': { lat: 51.1657, lng: 10.4515 }, // Center of Germany as fallback
+  'zurich': { lat: 47.3769, lng: 8.5417 },
+  'zurich, switzerland': { lat: 47.3769, lng: 8.5417 },
+  'zürich': { lat: 47.3769, lng: 8.5417 },
+  'zürich, switzerland': { lat: 47.3769, lng: 8.5417 },
+  'switzerland': { lat: 46.8182, lng: 8.2275 }, // Center of Switzerland as fallback
 };
 
 interface LocationPeriod {

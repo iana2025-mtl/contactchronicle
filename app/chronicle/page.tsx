@@ -367,7 +367,27 @@ export default function ChroniclePage() {
 
   const handleSaveNotes = () => {
     if (editingContact) {
-      updateContact(editingContact.id, { notes });
+      console.log('💾 Chronicle: Saving notes for contact:', editingContact.id);
+      console.log('  - Contact name:', `${editingContact.firstName} ${editingContact.lastName}`);
+      console.log('  - New notes:', notes);
+      console.log('  - Notes length:', notes.length);
+      updateContact(editingContact.id, { notes: notes.trim() });
+      
+      // Force a small delay to ensure state updates, then log verification
+      setTimeout(() => {
+        const updated = contacts.find(c => c.id === editingContact.id);
+        if (updated) {
+          console.log('✅ Chronicle: Notes saved! Verified:', {
+            id: updated.id,
+            name: `${updated.firstName} ${updated.lastName}`,
+            notesLength: updated.notes?.length || 0,
+            notesPreview: updated.notes?.substring(0, 100)
+          });
+        } else {
+          console.error('❌ Chronicle: Contact not found after update!');
+        }
+      }, 100);
+      
       setEditingContact(null);
       setNotes('');
     }
