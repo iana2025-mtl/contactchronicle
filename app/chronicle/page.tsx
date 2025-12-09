@@ -569,10 +569,12 @@ export default function ChroniclePage() {
           }
           
           // FINAL CHECK: Log the actual objects being passed to batch update
-          console.log(`\n🚨🚨🚨 FINAL CHECK BEFORE BATCH UPDATE 🚨🚨🚨`);
+          console.error(`\n🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨`);
+          console.error(`FINAL CHECK BEFORE BATCH UPDATE`);
+          console.error(`🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨`);
           const withNotes = contactsToUpdate.filter(u => u.contact.notes && u.contact.notes.trim());
-          console.log(`  Total contacts to update: ${contactsToUpdate.length}`);
-          console.log(`  Contacts WITH notes in batch: ${withNotes.length}`);
+          console.error(`  Total contacts to update: ${contactsToUpdate.length}`);
+          console.error(`  Contacts WITH notes in batch: ${withNotes.length}`);
           if (withNotes.length > 0) {
             console.log(`  First 3 contacts WITH notes:`, withNotes.slice(0, 3).map(u => ({
               id: u.id,
@@ -585,7 +587,8 @@ export default function ChroniclePage() {
             console.error(`  ❌❌❌ NO CONTACTS WITH NOTES IN BATCH!`);
             console.error(`  This means notes were lost before batch update call!`);
           }
-          console.log(`🚨🚨🚨 CALLING updateMultipleContacts NOW 🚨🚨🚨\n`);
+          console.error(`🚨🚨🚨 CALLING updateMultipleContacts NOW 🚨🚨🚨`);
+          console.error(`This should NOT be filtered - using console.error`);
           
           // ALERT to confirm batch update is being called (can't be filtered)
           const notesCount = contactsToUpdate.filter(u => u.contact.notes && u.contact.notes.trim()).length;

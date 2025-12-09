@@ -323,9 +323,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateMultipleContacts = (updates: Array<{ id: string; contact: Partial<Contact> }>) => {
-    console.log(`\n🚨🚨🚨 BATCH UPDATE CALLED 🚨🚨🚨`);
-    console.log(`📦 BATCH UPDATE: Updating ${updates.length} contacts`);
-    console.log(`🚨🚨🚨 THIS IS THE BATCH UPDATE FUNCTION 🚨🚨🚨\n`);
+    console.error(`\n🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨`);
+    console.error(`BATCH UPDATE FUNCTION CALLED - THIS IS IT!`);
+    console.error(`🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨`);
+    console.error(`📦 BATCH UPDATE: Updating ${updates.length} contacts`);
+    console.error(`Using console.error so it won't be filtered\n`);
     
     // Create update map for faster lookup
     const updateMap = new Map<string, Partial<Contact>>();
