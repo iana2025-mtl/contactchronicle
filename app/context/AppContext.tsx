@@ -324,11 +324,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const update = updateMap.get(c.id);
       if (update) {
         // Merge update, explicitly preserving notes
+        // CRITICAL: Check if 'notes' key exists in update object (not just if value is undefined)
+        let notesValue: string | undefined = undefined;
+        if ('notes' in update) {
+          // Update object has notes field - use it (even if value is undefined/null)
+          notesValue = update.notes;
+        } else if (c.notes !== undefined) {
+          // Update doesn't have notes field, but existing contact does - keep existing
+          notesValue = c.notes;
+        }
+        // If neither has notes, notesValue stays undefined
+        
         const merged: Contact = {
           ...c,
           ...update,
-          // CRITICAL: Explicitly handle notes - use update.notes if defined, otherwise keep existing
-          notes: update.notes !== undefined ? update.notes : c.notes,
+          // CRITICAL: Explicitly set notes field if we determined a value
+          notes: notesValue,
           id: c.id // Always preserve original ID
         };
         
