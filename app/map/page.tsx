@@ -85,6 +85,10 @@ const cityCoordinates: Record<string, { lat: number; lng: number }> = {
   'zurich, switzerland': { lat: 47.3769, lng: 8.5417 },
   'zürich': { lat: 47.3769, lng: 8.5417 },
   'zürich, switzerland': { lat: 47.3769, lng: 8.5417 },
+  'houston': { lat: 29.7604, lng: -95.3698 },
+  'houston, tx': { lat: 29.7604, lng: -95.3698 },
+  'houston, texas': { lat: 29.7604, lng: -95.3698 },
+  'houston texas': { lat: 29.7604, lng: -95.3698 },
 };
 
 interface LocationPeriod {
@@ -177,6 +181,17 @@ export default function MapPage() {
     );
     if (zurichMentions.length > 0) {
       console.log(`  🇨🇭 Found ${zurichMentions.length} contact(s) mentioning Zurich:`, zurichMentions.map(c => ({
+        name: `${c.firstName} ${c.lastName}`,
+        notes: c.notes?.substring(0, 150)
+      })));
+    }
+    
+    // Check for Houston specifically
+    const houstonMentions = contacts.filter(c => 
+      c.notes && c.notes.toLowerCase().includes('houston')
+    );
+    if (houstonMentions.length > 0) {
+      console.log(`  🌆 Found ${houstonMentions.length} contact(s) mentioning Houston:`, houstonMentions.map(c => ({
         name: `${c.firstName} ${c.lastName}`,
         notes: c.notes?.substring(0, 150)
       })));
@@ -562,6 +577,11 @@ export default function MapPage() {
         // Check if Zurich was found in locations
         if (locations.some(loc => loc.toLowerCase().includes('zurich'))) {
           console.log(`  ✅✅✅ ZURICH DETECTED in locations for ${contact.firstName} ${contact.lastName}!!!`);
+        }
+        
+        // Check if Houston was found in locations
+        if (locations.some(loc => loc.toLowerCase().includes('houston'))) {
+          console.log(`  ✅✅✅ HOUSTON DETECTED in locations for ${contact.firstName} ${contact.lastName}!!!`);
         }
         
         locations.forEach(locationName => {
