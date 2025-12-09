@@ -306,8 +306,8 @@ export default function MapPage() {
     // Initial sync
     syncTimeline();
 
-    // Poll localStorage every 100ms
-    const pollInterval = setInterval(syncTimeline, 100);
+    // Poll localStorage every 50ms for faster updates
+    const pollInterval = setInterval(syncTimeline, 50);
 
     // Listen for custom events
     const handleTimelineUpdated = () => {
