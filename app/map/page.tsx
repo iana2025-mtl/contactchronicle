@@ -495,7 +495,7 @@ export default function MapPage() {
 
     const normalized = cityName.toLowerCase().trim();
 
-    // Check merged database (static + dynamic)
+    // Step 1: Exact match (highest priority)
     if (allCityCoordinates[normalized]) {
       const coords = allCityCoordinates[normalized];
       // Validate coordinates
@@ -506,10 +506,44 @@ export default function MapPage() {
       return coords;
     }
 
-    // Partial match in merged database
-    for (const [key, coords] of Object.entries(allCityCoordinates)) {
-      if (normalized.includes(key) || key.includes(normalized)) {
+    // Step 2: Try with common separators and variations
+    const variations = [
+      normalized,
+      normalized.replace(/\s*,\s*/, ', '),
+      normalized.replace(/\s+/, ' '),
+    ];
+
+    for (const variant of variations) {
+      if (variant !== normalized && allCityCoordinates[variant]) {
+        const coords = allCityCoordinates[variant];
         if (coords.lat >= -90 && coords.lat <= 90 && coords.lng >= -180 && coords.lng <= 180) {
+          return coords;
+        }
+      }
+    }
+
+    // Step 3: Partial match - but only if one of the strings contains the other as a COMPLETE word
+    // This prevents "York" from matching "New York" incorrectly
+    const normalizedWords = normalized.split(/\s+/);
+    for (const [key, coords] of Object.entries(allCityCoordinates)) {
+      const keyWords = key.toLowerCase().split(/\s+/);
+      
+      // Check if normalized is a complete substring of key (e.g., "new york" contains "york" as word)
+      const isCompleteMatch = normalizedWords.every(word => 
+        keyWords.some(kw => kw === word || kw.startsWith(word + ',') || kw.endsWith(',' + word))
+      );
+      
+      // Also check reverse - if key is contained in normalized
+      const isReverseMatch = keyWords.every(kw => 
+        normalizedWords.some(word => word === kw || word.startsWith(kw + ',') || word.endsWith(',' + kw))
+      );
+      
+      // Only match if it's a meaningful match (not just a substring)
+      if ((isCompleteMatch || isReverseMatch) && 
+          (normalized.length > 3 && key.length > 3) && // Both must be substantial
+          coords.lat >= -90 && coords.lat <= 90 && coords.lng >= -180 && coords.lng <= 180) {
+        // Prefer longer, more specific matches
+        if (key.length >= normalized.length * 0.8) {
           return coords;
         }
       }
@@ -590,66 +624,68 @@ export default function MapPage() {
     console.log(`  🔍 Extracting locations from "${contact.firstName} ${contact.lastName}"`);
     console.log(`     Notes: "${noteText.substring(0, 200)}${noteText.length > 200 ? '...' : ''}"`);
 
-    // STEP 1: Direct city name matching - check ALL city keys (static + dynamic)
+    // STEP 1: Direct city name matching - prioritize exact matches
+    // First pass: Exact full key matches (e.g., "new york, ny")
+    const exactMatches: Array<{ key: string; coords: any; priority: number }> = [];
+    
     for (const [cityKey, coords] of Object.entries(allCityCoordinates)) {
       const cityKeyLower = cityKey.toLowerCase();
       
       // Skip very short keys
       if (cityKey.length < 3) continue;
 
-      // Try multiple matching strategies
       const cityName = cityKey.split(',')[0].trim().toLowerCase();
       const cityNameWords = cityName.split(/\s+/);
       
-      // Strategy 1: Full city key match (e.g., "new york, ny")
+      // Priority 1: Full city key match (e.g., "new york, ny")
       if (noteTextLower.includes(cityKeyLower)) {
-        // Use word boundary for better matching
         const escapedKey = cityKeyLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const regex = new RegExp(`\\b${escapedKey}\\b`, 'i');
         if (regex.test(noteText)) {
-          if (!locations.some(l => l.toLowerCase() === cityKeyLower)) {
-            locations.push(cityKey);
-            console.log(`    ✅ Direct match: "${cityKey}"`);
-            continue;
-          }
+          exactMatches.push({ key: cityKey, coords, priority: 1 });
         }
       }
       
-      // Strategy 2: City name only (e.g., just "new york")
+      // Priority 2: Multi-word city name (all words must appear, e.g., "new york")
       if (cityNameWords.length > 1) {
-        // Multi-word city - check if all words appear
         const allWordsFound = cityNameWords.every(word => {
           if (word.length < 3) return true; // Skip short words like "de", "ny"
           const wordRegex = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
           return wordRegex.test(noteText);
         });
         
-        if (allWordsFound && !locations.some(l => {
-          const locCityName = l.split(',')[0].trim().toLowerCase();
-          return locCityName === cityName;
-        })) {
-          // Try to get coordinates using full key
-          const coords = getCityCoordinates(cityKey);
-          if (coords) {
-            locations.push(cityKey);
-            console.log(`    ✅ Multi-word match: "${cityKey}"`);
-            continue;
-          }
+        if (allWordsFound) {
+          exactMatches.push({ key: cityKey, coords, priority: 2 });
         }
-      } else {
-        // Single word city - use word boundary
+      }
+      
+      // Priority 3: Single word city (must be word boundary)
+      if (cityNameWords.length === 1 && cityName.length > 3) {
         const escapedCity = cityName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const wordBoundaryRegex = new RegExp(`\\b${escapedCity}\\b`, 'i');
-        if (wordBoundaryRegex.test(noteText) && !locations.some(l => {
-          const locCityName = l.split(',')[0].trim().toLowerCase();
-          return locCityName === cityName;
-        })) {
-          const coords = getCityCoordinates(cityKey);
-          if (coords) {
-            locations.push(cityKey);
-            console.log(`    ✅ Single-word match: "${cityKey}"`);
-            continue;
-          }
+        if (wordBoundaryRegex.test(noteText)) {
+          exactMatches.push({ key: cityKey, coords, priority: 3 });
+        }
+      }
+    }
+    
+    // Sort by priority and add best matches first
+    exactMatches.sort((a, b) => {
+      if (a.priority !== b.priority) return a.priority - b.priority;
+      // If same priority, prefer longer/more specific keys
+      return b.key.length - a.key.length;
+    });
+    
+    // Add unique matches (deduplicate by coordinates)
+    const seenCoords = new Set<string>();
+    for (const match of exactMatches) {
+      const coordKey = `${match.coords.lat.toFixed(2)}_${match.coords.lng.toFixed(2)}`;
+      if (!seenCoords.has(coordKey)) {
+        seenCoords.add(coordKey);
+        const cityKeyLower = match.key.toLowerCase();
+        if (!locations.some(l => l.toLowerCase() === cityKeyLower)) {
+          locations.push(match.key);
+          console.log(`    ✅ Match (priority ${match.priority}): "${match.key}"`);
         }
       }
     }
@@ -759,7 +795,7 @@ export default function MapPage() {
 
     // Remove duplicates (by coordinates)
     const uniqueLocations: string[] = [];
-    const seenCoords = new Set<string>();
+    const seenCoordsPattern = new Set<string>();
     
     locations.forEach(loc => {
       const coords = getCityCoordinates(loc);
@@ -827,21 +863,31 @@ export default function MapPage() {
         return;
       }
 
-      const coordKey = `${cityData.lat.toFixed(4)}_${cityData.lng.toFixed(4)}`;
+      // Use rounded coordinates for deduplication (0.01 degree ≈ 1km precision)
+      const roundedLat = Math.round(cityData.lat * 100) / 100;
+      const roundedLng = Math.round(cityData.lng * 100) / 100;
+      const coordKey = `${roundedLat.toFixed(2)}_${roundedLng.toFixed(2)}`;
       const endDate = idx < geoEvents.length - 1 ? geoEvents[idx + 1].date : null;
 
       if (!markersMap.has(coordKey)) {
         markersMap.set(coordKey, {
-          id: `timeline-${event.id}`,
+          id: `timeline-${event.id}-${coordKey}`, // Stable ID based on event + location
           city: locationName,
           displayName: cityData.displayName,
-          coordinates: { lat: cityData.lat, lng: cityData.lng },
+          coordinates: { lat: cityData.lat, lng: cityData.lng }, // Keep precise coordinates for display
           contacts: [],
           source: 'timeline',
           startDate: event.date!,
           endDate,
         });
         console.log(`  ✅ Added timeline marker: ${cityData.displayName} at [${cityData.lat}, ${cityData.lng}]`);
+      } else {
+        // Update existing marker with timeline event info if needed
+        const existing = markersMap.get(coordKey)!;
+        if (existing.source === 'notes' && !existing.startDate) {
+          existing.startDate = event.date!;
+          existing.endDate = endDate;
+        }
       }
     });
 
@@ -865,14 +911,17 @@ export default function MapPage() {
           return;
         }
 
-        const coordKey = `${cityData.lat.toFixed(4)}_${cityData.lng.toFixed(4)}`;
+        // Use rounded coordinates for deduplication (0.01 degree ≈ 1km precision)
+        const roundedLat = Math.round(cityData.lat * 100) / 100;
+        const roundedLng = Math.round(cityData.lng * 100) / 100;
+        const coordKey = `${roundedLat.toFixed(2)}_${roundedLng.toFixed(2)}`;
         
         if (!markersMap.has(coordKey)) {
           markersMap.set(coordKey, {
-            id: `notes-${contact.id}-${locationName}-${contactIdx}-${locIdx}`,
+            id: `notes-${locationName}-${coordKey}`, // Stable ID based on location
             city: locationName,
             displayName: cityData.displayName,
-            coordinates: { lat: cityData.lat, lng: cityData.lng },
+            coordinates: { lat: cityData.lat, lng: cityData.lng }, // Keep precise coordinates for display
             contacts: [],
             source: 'notes',
           });
@@ -1316,13 +1365,22 @@ export default function MapPage() {
 
                       const position: [number, number] = [marker.coordinates.lat, marker.coordinates.lng];
                       
-                      // Create a stable key that doesn't change unless marker data actually changes
-                      const markerKey = `${marker.id}-${marker.source}-${marker.coordinates.lat.toFixed(4)}-${marker.coordinates.lng.toFixed(4)}`;
+                      // Use stable marker ID - prevents re-rendering/blinking
+                      // ID is based on location, not changing coordinates
+                      const markerKey = marker.id;
 
                       return (
                         <Marker
                           key={markerKey}
                           position={position}
+                          icon={L.icon({
+                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-purple.png',
+                            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                            iconSize: [25, 41],
+                            iconAnchor: [12, 41],
+                            popupAnchor: [1, -34],
+                            shadowSize: [41, 41]
+                          })}
                           eventHandlers={{
                             click: () => {
                               console.log(`📍 Marker clicked: ${marker.displayName}`);
