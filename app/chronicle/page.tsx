@@ -62,10 +62,14 @@ export default function ChroniclePage() {
   // Import contacts from JSON file
   const handleImportContacts = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      alert('❌ No file selected!');
+      return;
+    }
 
-    // ALERT immediately to confirm import started
-    alert(`📤 IMPORT STARTED\nReading file: ${file.name}\nSize: ${(file.size / 1024).toFixed(2)} KB`);
+    // ALERT immediately to confirm import started - use window.alert to ensure it shows
+    window.alert(`📤 IMPORT STARTED\nReading file: ${file.name}\nSize: ${(file.size / 1024).toFixed(2)} KB\n\nClick OK to continue...`);
+    console.log(`🚀🚀🚀 IMPORT FUNCTION CALLED - FILE: ${file.name}`);
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -149,8 +153,9 @@ export default function ChroniclePage() {
           return hasNotes;
         });
         
-        // ALERT to show import status (can't be filtered)
-        alert(`📤 IMPORT STARTING\nTotal contacts: ${importedContacts.length}\nContacts with notes: ${importedWithNotes.length}`);
+        // ALERT to show import status (can't be filtered) - use window.alert
+        window.alert(`📤 IMPORT STARTING\nTotal contacts: ${importedContacts.length}\nContacts with notes: ${importedWithNotes.length}\n\nClick OK to start processing...`);
+        console.log(`📤 IMPORT PROCESSING: ${importedContacts.length} contacts, ${importedWithNotes.length} with notes`);
         
         console.log(`📤 ===== IMPORT STARTING =====`);
         console.log(`📤 Importing ${importedContacts.length} total contacts`);
