@@ -149,39 +149,38 @@ export default function ChroniclePage() {
         }
 
         if (existing) {
-          // Build update object - EXPLICITLY include notes if imported has it
-          const update: Partial<Contact> = {};
+          // Build update object - START WITH ALL FIELDS FROM IMPORTED (includes notes if present)
+          const update: Partial<Contact> = {
+            // Spread imported first - this includes notes if it exists in imported
+            ...imported,
+            // Then override with existing values where imported is empty/undefined
+            firstName: imported.firstName || existing.firstName || '',
+            lastName: imported.lastName || existing.lastName || '',
+            emailAddress: imported.emailAddress || existing.emailAddress || '',
+            phoneNumber: imported.phoneNumber || existing.phoneNumber || '',
+            linkedInProfile: imported.linkedInProfile || existing.linkedInProfile || '',
+            dateAdded: imported.dateAdded || existing.dateAdded || '',
+            dateEdited: imported.dateEdited || existing.dateEdited || '',
+            source: imported.source || existing.source || 'Uploaded',
+          };
           
-          // Copy all fields from imported, preserving existing values where imported is empty
-          update.firstName = imported.firstName || existing.firstName || '';
-          update.lastName = imported.lastName || existing.lastName || '';
-          update.emailAddress = imported.emailAddress || existing.emailAddress || '';
-          update.phoneNumber = imported.phoneNumber || existing.phoneNumber || '';
-          update.linkedInProfile = imported.linkedInProfile || existing.linkedInProfile || '';
-          update.dateAdded = imported.dateAdded || existing.dateAdded || '';
-          update.dateEdited = imported.dateEdited || existing.dateEdited || '';
-          update.source = imported.source || existing.source || 'Uploaded';
-          
-          // CRITICAL: Always set notes field explicitly
-          // Priority: imported.notes > existing.notes > empty string
-          if (imported.notes !== undefined && imported.notes !== null && imported.notes !== '') {
-            // Imported has notes - use them
-            update.notes = imported.notes;
-          } else if (imported.notes === '') {
-            // Imported explicitly has empty notes - clear them
-            update.notes = '';
+          // CRITICAL: Explicitly handle notes field
+          // If imported has notes field (even if empty string), use it
+          // Otherwise, preserve existing notes
+          if ('notes' in imported) {
+            update.notes = imported.notes; // Use imported notes (even if empty string)
           } else if (existing.notes) {
-            // Imported has no notes, but existing does - preserve existing
-            update.notes = existing.notes;
-          } else {
-            // Neither has notes - explicitly set to empty string to ensure field exists
-            update.notes = '';
+            update.notes = existing.notes; // Preserve existing notes if imported has no notes field
           }
+          
+          // Remove id from update (we use existing.id, not imported.id)
+          delete (update as any).id;
 
           // Log if imported had notes
           if (imported.notes && imported.notes.trim()) {
             console.error(`✅ MATCH FOUND: "${existing.firstName} ${existing.lastName}" - Imported has notes: "${imported.notes.substring(0, 50)}..."`);
             console.error(`   Update object has notes: ${!!update.notes}, value: "${update.notes?.substring(0, 50)}..."`);
+            console.error(`   Update object keys:`, Object.keys(update));
           }
 
           updates.push({ id: existing.id, contact: update });
