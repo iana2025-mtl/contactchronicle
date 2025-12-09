@@ -766,6 +766,10 @@ export default function MapPage() {
     for (const variant of variations) {
       if (variant !== normalizedLookup && allCityCoordinates[variant]) {
         const coords = allCityCoordinates[variant];
+        // Validate coordinates exist and are valid
+        if (!coords || typeof coords.lat !== 'number' || typeof coords.lng !== 'number') {
+          continue;
+        }
         if (coords.lat >= -90 && coords.lat <= 90 && coords.lng >= -180 && coords.lng <= 180) {
           return coords;
         }
@@ -791,6 +795,7 @@ export default function MapPage() {
       // Only match if it's a meaningful match (not just a substring)
       if ((isCompleteMatch || isReverseMatch) && 
           (normalizedLookup.length > 3 && key.length > 3) && // Both must be substantial
+          coords && typeof coords.lat === 'number' && typeof coords.lng === 'number' &&
           coords.lat >= -90 && coords.lat <= 90 && coords.lng >= -180 && coords.lng <= 180) {
         // Prefer longer, more specific matches
         if (key.length >= normalizedLookup.length * 0.8) {
