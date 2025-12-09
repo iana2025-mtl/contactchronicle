@@ -281,21 +281,21 @@ export default function MapPage() {
           }))
         );
 
-          if (storedHash !== lastTimelineHashRef.current) {
-            console.log('🔄 MAP: Timeline synced from localStorage');
-            console.log(`  📊 Total events: ${storedTimeline.length}`);
-            
-            const geoEvents = storedTimeline.filter(e => e.geographicEvent && e.geographicEvent.trim());
-            console.log(`  🌍 Geographic events: ${geoEvents.length}`);
-            
-            setLocalTimelineEvents([...storedTimeline]);
-            setTimelineSynced(true);
-            lastTimelineHashRef.current = storedHash;
-            
-            // Force map recalculation
-            console.log(`  🗺️ Forcing map recalculation (timeline update)`);
-            setMapKey(prev => prev + 1);
-          }
+        if (storedHash !== lastTimelineHashRef.current) {
+          console.log('🔄 MAP: Timeline synced from localStorage');
+          console.log(`  📊 Total events: ${storedTimeline.length}`);
+          
+          const geoEvents = storedTimeline.filter(e => e.geographicEvent && e.geographicEvent.trim());
+          console.log(`  🌍 Geographic events: ${geoEvents.length}`);
+          
+          setLocalTimelineEvents([...storedTimeline]);
+          setTimelineSynced(true);
+          lastTimelineHashRef.current = storedHash;
+          
+          // Force map recalculation
+          console.log(`  🗺️ Forcing map recalculation (timeline update)`);
+          setMapKey(prev => prev + 1);
+        }
       } catch (error) {
         console.error('❌ MAP: Error syncing timeline:', error);
       }
@@ -371,14 +371,19 @@ export default function MapPage() {
       }
     }
 
-    // Track missing city
-    setMissingCities(prev => {
-      if (!prev.has(normalized)) {
-        console.warn(`⚠️ CITY NOT IN DATABASE: "${cityName}"`);
-        return new Set(prev).add(normalized);
-      }
-      return prev;
-    });
+        // Track missing city (only if it looks like a real city name, not a common word)
+        // Only track if it's longer than 3 chars and doesn't match common words
+        const commonWords = new Set(['new', 'long', 'old', 'big', 'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'its', 'may', 'now', 'see', 'two', 'way', 'who', 'boy', 'did', 'let', 'put', 'say', 'she', 'too', 'use', 'lives', 'works', 'lived', 'worked', 'york', 'island', 'beach']);
+        
+        if (normalized.length > 3 && !commonWords.has(normalized) && !normalized.includes(',')) {
+          setMissingCities(prev => {
+            if (!prev.has(normalized)) {
+              console.warn(`⚠️ CITY NOT IN DATABASE: "${cityName}"`);
+              return new Set(prev).add(normalized);
+            }
+            return prev;
+          });
+        }
 
     return null;
   }, []);
@@ -509,17 +514,35 @@ export default function MapPage() {
       /\b([A-Z][a-z]{3,})\b/g,
     ];
 
+    // Comprehensive skip words list (both capitalized and lowercase)
     const skipWords = new Set([
-      'The', 'This', 'That', 'These', 'Those', 'There', 'Here', 'When', 'Where', 'What',
-      'Who', 'How', 'Why', 'First', 'Last', 'Next', 'Previous', 'Met', 'Meet', 'Worked',
-      'Work', 'Lived', 'Live', 'Moved', 'Move', 'Born', 'Grew', 'Studied', 'Study',
-      'Graduated', 'Attended', 'Joined', 'Left', 'Started', 'Ended', 'During', 'After',
-      'Before', 'Since', 'Until', 'With', 'Without', 'From', 'To', 'In', 'At', 'On',
-      'By', 'For', 'And', 'Or', 'But', 'Not', 'All', 'Some', 'Many', 'Most', 'Each',
-      'Every', 'Both', 'Either', 'Neither', 'Year', 'Years', 'Month', 'Months', 'Week',
-      'Weeks', 'Day', 'Days', 'Today', 'Yesterday', 'Tomorrow', 'January', 'February',
-      'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October',
-      'November', 'December'
+      // Articles and pronouns
+      'The', 'the', 'This', 'this', 'That', 'that', 'These', 'these', 'Those', 'those',
+      'There', 'there', 'Here', 'here', 'When', 'when', 'Where', 'where', 'What', 'what',
+      'Who', 'who', 'How', 'how', 'Why', 'why',
+      // Time references
+      'First', 'first', 'Last', 'last', 'Next', 'next', 'Previous', 'previous',
+      'Today', 'today', 'Yesterday', 'yesterday', 'Tomorrow', 'tomorrow',
+      'Year', 'year', 'Years', 'years', 'Month', 'month', 'Months', 'months',
+      'Week', 'week', 'Weeks', 'weeks', 'Day', 'day', 'Days', 'days',
+      // Action verbs
+      'Met', 'met', 'Meet', 'meet', 'Worked', 'worked', 'Work', 'work', 'Works', 'works',
+      'Lived', 'lived', 'Live', 'live', 'Lives', 'lives', 'Moved', 'moved', 'Move', 'move',
+      'Born', 'born', 'Grew', 'grew', 'Studied', 'studied', 'Study', 'study',
+      'Graduated', 'graduated', 'Attended', 'attended', 'Joined', 'joined',
+      'Left', 'left', 'Started', 'started', 'Ended', 'ended',
+      // Prepositions and conjunctions
+      'During', 'during', 'After', 'after', 'Before', 'before', 'Since', 'since',
+      'Until', 'until', 'With', 'with', 'Without', 'without', 'From', 'from',
+      'To', 'to', 'In', 'in', 'At', 'at', 'On', 'on', 'By', 'by', 'For', 'for',
+      'And', 'and', 'Or', 'or', 'But', 'but', 'Not', 'not',
+      // Quantifiers
+      'All', 'all', 'Some', 'some', 'Many', 'many', 'Most', 'most', 'Each', 'each',
+      'Every', 'every', 'Both', 'both', 'Either', 'either', 'Neither', 'neither',
+      // Months
+      'January', 'january', 'February', 'february', 'March', 'march', 'April', 'april',
+      'May', 'may', 'June', 'june', 'July', 'july', 'August', 'august',
+      'September', 'september', 'October', 'october', 'November', 'november', 'December', 'december'
     ]);
 
     for (const pattern of patterns) {
@@ -529,8 +552,15 @@ export default function MapPage() {
         if (match[1]) {
           let cityToCheck = match[1].trim();
           
-          // Skip common non-city words
-          if (skipWords.has(cityToCheck)) continue;
+          // Skip common non-city words (case-insensitive check)
+          if (skipWords.has(cityToCheck) || skipWords.has(cityToCheck.toLowerCase()) || skipWords.has(cityToCheck.charAt(0).toUpperCase() + cityToCheck.slice(1).toLowerCase())) {
+            continue;
+          }
+          
+          // Skip single words that are too short (likely not cities)
+          if (cityToCheck.length < 4 && !cityToCheck.match(/^[A-Z][a-z]{2,3}$/)) {
+            continue;
+          }
           
           // Build variations to try
           const variations: string[] = [];
