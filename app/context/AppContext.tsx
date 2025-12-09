@@ -445,9 +445,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     
     const finalContacts = [...updatedContacts, ...newContacts];
     
-    console.log(`📦 BATCH UPDATE complete: ${finalContacts.length} total contacts`);
+    console.error(`📦 BATCH UPDATE complete: ${finalContacts.length} total contacts`);
     const contactsWithNotes = finalContacts.filter(c => c.notes && c.notes.trim());
-    console.log(`📦 Contacts with notes after batch: ${contactsWithNotes.length}`);
+    console.error(`📦 Contacts with notes after batch: ${contactsWithNotes.length}`);
     
     setContacts(finalContacts);
     
@@ -455,10 +455,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (user && isDataLoaded) {
       const contactsKey = `contactChronicle_contacts_${user.id}`;
       try {
-        localStorage.setItem(contactsKey, JSON.stringify(finalContacts));
-        console.log(`📦 Saved batch update to localStorage`);
-        const savedWithNotes = finalContacts.filter(c => c.notes && c.notes.trim());
-        console.log(`📦 Verified: ${savedWithNotes.length} contacts with notes saved`);
+        // Safari compatibility: Verify data before saving
+        const contactsWithNotesBeforeSave = finalContacts.filter(c => c.notes && c.notes.trim());
+        console.error(`📦 Before save: ${contactsWithNotesBeforeSave.length} contacts have notes`);
+        
+        const jsonString = JSON.stringify(finalContacts);
+        // Safari compatibility: Check JSON string for notes
+        const notesCountInJSON = (jsonString.match(/"notes":\s*"[^"]+"/g) || []).length;
+        console.error(`📦 JSON string contains ${notesCountInJSON} notes fields`);
+        
+        localStorage.setItem(contactsKey, jsonString);
+        console.error(`📦 Saved batch update to localStorage`);
+        
+        // Safari compatibility: Immediately verify what was saved
+        const savedJson = localStorage.getItem(contactsKey);
+        if (savedJson) {
+          const savedContacts: Contact[] = JSON.parse(savedJson);
+          const savedWithNotes = savedContacts.filter(c => c.notes && c.notes.trim());
+          console.error(`📦 Verified after save: ${savedWithNotes.length} contacts with notes in localStorage`);
+          
+          if (savedWithNotes.length !== contactsWithNotesBeforeSave.length) {
+            console.error(`⚠️⚠️⚠️ SAFARI ISSUE: Notes count mismatch! Before: ${contactsWithNotesBeforeSave.length}, After: ${savedWithNotes.length}`);
+          }
+        }
       } catch (error) {
         console.error('Error saving batch update:', error);
       }
