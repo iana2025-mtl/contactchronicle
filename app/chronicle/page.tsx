@@ -206,23 +206,29 @@ export default function ChroniclePage() {
           const emailLower = imported.emailAddress?.toLowerCase();
           const nameKey = `${imported.firstName?.toLowerCase()}_${imported.lastName?.toLowerCase()}`;
           
-          // Try to find existing contact by email first (must have email)
-          let existing = contacts.find(c => {
-            const cEmailLower = c.emailAddress?.toLowerCase();
-            return cEmailLower && emailLower && cEmailLower === emailLower;
-          });
+          // Try to find existing contact - prioritize ID match (most reliable)
+          // If IDs don't match (contacts were transferred before), use email or name
+          let existing = null;
           
-          // If not found by email, try by exact name match
+          // Method 1: Try matching by ID first (most reliable if IDs match)
+          if (imported.id) {
+            existing = contacts.find(c => c.id === imported.id);
+          }
+          
+          // Method 2: Try by email if ID match failed (must have email)
+          if (!existing && emailLower) {
+            existing = contacts.find(c => {
+              const cEmailLower = c.emailAddress?.toLowerCase();
+              return cEmailLower && cEmailLower === emailLower;
+            });
+          }
+          
+          // Method 3: Try by exact name match if email match failed
           if (!existing) {
             existing = contacts.find(c => {
               const cNameKey = `${c.firstName?.toLowerCase()}_${c.lastName?.toLowerCase()}`;
               return cNameKey === nameKey && cNameKey !== 'first name_last name'; // Exclude placeholder contacts
             });
-          }
-          
-          // Also try matching by ID if present
-          if (!existing && imported.id) {
-            existing = contacts.find(c => c.id === imported.id);
           }
           
           // Check if imported contact has notes - be very explicit
