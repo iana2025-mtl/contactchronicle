@@ -123,9 +123,12 @@ export default function MapPage() {
   
   // CRITICAL: Sync local contacts state with localStorage and context
   // This ensures we always have the latest data even if context is stale
+  const localContactsRef = useRef<Contact[]>([]);
+  
   useEffect(() => {
     if (!user) {
       setLocalContacts([]);
+      localContactsRef.current = [];
       return;
     }
     
@@ -140,7 +143,7 @@ export default function MapPage() {
           return `${c.id}:${c.firstName}:${c.lastName}:${notesContent}`;
         }).join('|');
         
-        const currentHash = localContacts.map(c => {
+        const currentHash = localContactsRef.current.map(c => {
           const notesContent = c.notes || '';
           return `${c.id}:${c.firstName}:${c.lastName}:${notesContent}`;
         }).join('|');
@@ -150,7 +153,9 @@ export default function MapPage() {
           console.log(`  📊 Stored contacts: ${storedContacts.length}`);
           const withNotes = storedContacts.filter(c => c.notes && c.notes.trim());
           console.log(`  📝 Stored contacts with notes: ${withNotes.length}`);
-          setLocalContacts([...storedContacts]); // New array reference
+          const newContacts = [...storedContacts];
+          setLocalContacts(newContacts);
+          localContactsRef.current = newContacts;
         }
       } catch (error) {
         console.error('Error loading contacts from localStorage:', error);
@@ -164,17 +169,19 @@ export default function MapPage() {
         return `${c.id}:${c.firstName}:${c.lastName}:${notesContent}`;
       }).join('|');
       
-      const localHash = localContacts.map(c => {
+      const localHash = localContactsRef.current.map(c => {
         const notesContent = c.notes || '';
         return `${c.id}:${c.firstName}:${c.lastName}:${notesContent}`;
       }).join('|');
       
       if (contextHash !== localHash) {
         console.log('🔄 MAP PAGE: Syncing with context contacts');
-        setLocalContacts([...contacts]);
+        const newContacts = [...contacts];
+        setLocalContacts(newContacts);
+        localContactsRef.current = newContacts;
       }
     }
-  }, [user, contacts, localContacts]);
+  }, [user, contacts]);
   
   // Use localContacts if available, otherwise fall back to context contacts
   const activeContacts = localContacts.length > 0 ? localContacts : contacts;
