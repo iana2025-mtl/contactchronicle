@@ -370,14 +370,25 @@ export default function ChroniclePage() {
       console.log('💾 Chronicle: Saving notes for contact:', editingContact.id);
       console.log('  - Contact name:', `${editingContact.firstName} ${editingContact.lastName}`);
       console.log('  - Current notes:', editingContact.notes || 'none');
+      console.log('  - Current notes length:', editingContact.notes?.length || 0);
       console.log('  - New notes:', notes);
-      console.log('  - Notes length:', notes.length);
+      console.log('  - New notes length:', notes.length);
       
-      // Save notes
+      // Trim notes - empty string after trimming means delete notes
       const trimmedNotes = notes.trim();
+      const isDeleting = trimmedNotes.length === 0;
+      
+      if (isDeleting) {
+        console.log('  🗑️ DELETING notes (empty string after trim)');
+      } else {
+        console.log('  ✅ UPDATING notes:', trimmedNotes.substring(0, 100));
+      }
+      
+      // Always pass notes key explicitly (even if empty string) to ensure deletion
       updateContact(editingContact.id, { notes: trimmedNotes });
       
-      console.log('✅ Chronicle: updateContact called with notes:', trimmedNotes.substring(0, 100));
+      console.log('✅ Chronicle: updateContact called');
+      console.log(`  - Notes value: "${trimmedNotes}" (length: ${trimmedNotes.length})`);
       console.log('  💡 The contacts array should update and trigger map recalculation');
       console.log('  💡 Navigate to Map page to see updated locations');
       

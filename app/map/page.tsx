@@ -147,26 +147,42 @@ export default function MapPage() {
       if (stored) {
         try {
           const storedContacts: Contact[] = JSON.parse(stored);
+          
+          // Create comprehensive hash that includes empty notes (for deletion detection)
           const storedHash = JSON.stringify(
             storedContacts.map(c => ({
               id: c.id,
-              notes: c.notes || '',
+              notes: c.notes || '', // Include empty string to detect deletions
               firstName: c.firstName,
               lastName: c.lastName
             }))
           );
 
-          // Only update if data changed
+          // Always check if hash changed (including empty notes)
           if (storedHash !== lastStorageCheckRef.current) {
             console.log('🔄 MAP: Contacts synced from localStorage');
             console.log(`  📊 Total: ${storedContacts.length}`);
-            const withNotes = storedContacts.filter(c => c.notes && c.notes.trim());
-            console.log(`  📝 With notes: ${withNotes.length}`);
             
+            // Count contacts with and without notes
+            const withNotes = storedContacts.filter(c => c.notes && c.notes.trim());
+            const withEmptyNotes = storedContacts.filter(c => c.notes !== undefined && c.notes !== null && (!c.notes || !c.notes.trim()));
+            console.log(`  📝 With notes: ${withNotes.length}`);
+            console.log(`  🗑️ With empty notes (deleted): ${withEmptyNotes.length}`);
+            
+            // Log sample of contacts that had notes deleted
+            if (withEmptyNotes.length > 0) {
+              console.log(`  📋 Sample contacts with deleted notes:`, withEmptyNotes.slice(0, 3).map(c => ({
+                name: `${c.firstName} ${c.lastName}`,
+                notesValue: c.notes || '(empty)'
+              })));
+            }
+            
+            // Update local state with new array reference
             setLocalContacts([...storedContacts]);
             lastStorageCheckRef.current = storedHash;
             
             // Force map recalculation
+            console.log(`  🗺️ Forcing map recalculation (mapKey increment)`);
             setMapKey(prev => prev + 1);
           }
         } catch (error) {
@@ -491,14 +507,27 @@ export default function MapPage() {
   // FORCE MAP UPDATE: When data changes
   // ============================================================================
   useEffect(() => {
+    // Create hash that includes empty notes to detect deletions
     const contactsHash = JSON.stringify(
-      activeContacts.map(c => ({ id: c.id, notes: c.notes || '' }))
+      activeContacts.map(c => ({ 
+        id: c.id, 
+        notes: c.notes || '' // Include empty string to detect when notes are deleted
+      }))
     );
 
     if (contactsHash !== lastContactsHashRef.current) {
       console.log('🔄 MAP: Contacts data changed - forcing map update');
+      const contactsWithNotes = activeContacts.filter(c => c.notes && c.notes.trim());
+      const contactsWithoutNotes = activeContacts.filter(c => !c.notes || !c.notes.trim());
+      console.log(`  📊 Contacts with notes: ${contactsWithNotes.length}`);
+      console.log(`  📊 Contacts without notes: ${contactsWithoutNotes.length}`);
+      
       lastContactsHashRef.current = contactsHash;
-      setMapKey(prev => prev + 1);
+      setMapKey(prev => {
+        const newKey = prev + 1;
+        console.log(`  🗺️ Map key updated to ${newKey}`);
+        return newKey;
+      });
     }
   }, [activeContacts, locationMarkers.length]);
 
