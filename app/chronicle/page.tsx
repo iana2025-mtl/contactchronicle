@@ -475,17 +475,17 @@ export default function ChroniclePage() {
         <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
           {/* Header with Export/Import buttons */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
               Contact Chronicle
             </h1>
             <div className="flex flex-wrap gap-2 sm:gap-3">
               <button
                 onClick={handleExportContacts}
-                className="px-3 sm:px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all shadow-md hover:shadow-lg text-sm sm:text-base"
+                className="px-3 sm:px-4 py-2 bg-gradient-to-r from-purple-300 to-pink-300 text-purple-800 rounded-lg hover:from-purple-400 hover:to-pink-400 transition-all shadow-sm hover:shadow-md text-sm sm:text-base"
               >
                 📥 Export Contacts
               </button>
-              <label className="px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all shadow-md hover:shadow-lg cursor-pointer text-sm sm:text-base text-center">
+              <label className="px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-300 to-purple-300 text-purple-800 rounded-lg hover:from-blue-400 hover:to-purple-400 transition-all shadow-sm hover:shadow-md cursor-pointer text-sm sm:text-base text-center">
                 📤 Import Contacts
                 <input
                   ref={fileInputRef}
@@ -497,7 +497,7 @@ export default function ChroniclePage() {
               </label>
               <button
                 onClick={handleCheckData}
-                className="px-3 sm:px-4 py-2 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg hover:from-green-600 hover:to-teal-600 transition-all shadow-md hover:shadow-lg text-sm sm:text-base"
+                className="px-3 sm:px-4 py-2 bg-gradient-to-r from-green-300 to-teal-300 text-green-800 rounded-lg hover:from-green-400 hover:to-teal-400 transition-all shadow-sm hover:shadow-md text-sm sm:text-base"
               >
                 🔍 Check Data
               </button>
@@ -507,29 +507,29 @@ export default function ChroniclePage() {
           {/* Dashboard Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
             <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-3 sm:p-4 bg-gradient-to-br from-white to-purple-50">
-              <div className="text-xs sm:text-sm text-purple-600 mb-1">Total Contacts</div>
-              <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-purple-800">{stats.total}</div>
+              <div className="text-xs sm:text-sm text-purple-500 mb-1">Total Contacts</div>
+              <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-purple-700">{stats.total}</div>
             </div>
-            <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-3 sm:p-4 bg-gradient-to-br from-white to-blue-50">
-              <div className="text-xs sm:text-sm text-blue-600 mb-1">Avg per Month</div>
-              <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-800">{stats.avgPerMonth}</div>
+            <div className="bg-white rounded-lg shadow-sm border border-blue-200 p-3 sm:p-4 bg-gradient-to-br from-white to-blue-50">
+              <div className="text-xs sm:text-sm text-blue-500 mb-1">Avg per Month</div>
+              <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-700">{stats.avgPerMonth}</div>
             </div>
-            <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-3 sm:p-4 bg-gradient-to-br from-white to-pink-50">
-              <div className="text-xs sm:text-sm text-pink-600 mb-1">Peak Month</div>
-              <div className="text-lg sm:text-xl lg:text-2xl font-bold text-pink-800">
+            <div className="bg-white rounded-lg shadow-sm border border-pink-200 p-3 sm:p-4 bg-gradient-to-br from-white to-pink-50">
+              <div className="text-xs sm:text-sm text-pink-500 mb-1">Peak Month</div>
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold text-pink-700">
                 {stats.peakMonth ? `${stats.peakMonth.month}: ${stats.peakMonth.count}` : 'N/A'}
               </div>
             </div>
-            <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-3 sm:p-4 bg-gradient-to-br from-white to-teal-50">
-              <div className="text-xs sm:text-sm text-teal-600 mb-1">High Activity</div>
-              <div className="text-lg sm:text-xl lg:text-2xl font-bold text-teal-800">{stats.highActivityMonths.length}</div>
+            <div className="bg-white rounded-lg shadow-sm border border-teal-200 p-3 sm:p-4 bg-gradient-to-br from-white to-teal-50">
+              <div className="text-xs sm:text-sm text-teal-500 mb-1">High Activity</div>
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold text-teal-700">{stats.highActivityMonths.length}</div>
             </div>
           </div>
 
           {/* Chart */}
           {quarterlyData.length > 0 && (
             <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-3 sm:p-4 mb-4 sm:mb-6 bg-gradient-to-br from-white to-purple-50">
-              <h3 className="text-base sm:text-lg font-medium mb-3 text-purple-800">Contacts Added by Quarter (5 Years)</h3>
+              <h3 className="text-base sm:text-lg font-medium mb-3 text-purple-700">Contacts Added by Quarter (5 Years)</h3>
               <div className="min-h-[300px] w-full">
                 <ResponsiveContainer width="100%" height={350} minHeight={300}>
                   <BarChart data={quarterlyData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
@@ -551,15 +551,15 @@ export default function ChroniclePage() {
                     <Bar dataKey="contacts" fill="url(#colorGradient)" radius={[8, 8, 0, 0]}>
                       <defs>
                         <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#a855f7" stopOpacity={0.8} />
-                          <stop offset="100%" stopColor="#ec4899" stopOpacity={0.8} />
+                          <stop offset="0%" stopColor="#c084fc" stopOpacity={0.7} />
+                          <stop offset="100%" stopColor="#f9a8d4" stopOpacity={0.7} />
                         </linearGradient>
                       </defs>
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <p className="text-xs sm:text-sm text-purple-600 mt-2">Bars show quarterly additions; cycles indicate bursts vs. lulls.</p>
+              <p className="text-xs sm:text-sm text-purple-500 mt-2">Bars show quarterly additions; cycles indicate bursts vs. lulls.</p>
             </div>
           )}
 
@@ -571,12 +571,12 @@ export default function ChroniclePage() {
                 placeholder="Search contacts..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="flex-1 px-3 sm:px-4 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm sm:text-base"
+                className="flex-1 px-3 sm:px-4 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-300 text-sm sm:text-base"
               />
               <select
                 value={selectedSource}
                 onChange={(e) => setSelectedSource(e.target.value)}
-                className="px-3 sm:px-4 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm sm:text-base"
+                className="px-3 sm:px-4 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-300 text-sm sm:text-base"
               >
                 <option value="all">All Sources</option>
                 <option value="LinkedIn">LinkedIn</option>
@@ -591,7 +591,7 @@ export default function ChroniclePage() {
             {/* Desktop Table View */}
             <div className="hidden sm:block overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+                <thead className="bg-gradient-to-r from-purple-300 to-pink-300 text-purple-800">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs sm:text-sm font-semibold">Name</th>
                     <th className="px-4 py-3 text-left text-xs sm:text-sm font-semibold">Email</th>
@@ -628,7 +628,7 @@ export default function ChroniclePage() {
                       <td className="px-4 py-3 text-sm">
                         <button
                           onClick={() => handleEditContact(contact)}
-                          className="text-purple-600 hover:text-purple-800 hover:underline"
+                          className="text-purple-500 hover:text-purple-700 hover:underline"
                         >
                           Edit
                         </button>
@@ -682,13 +682,13 @@ export default function ChroniclePage() {
           {editingContact && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
               <div className="bg-white rounded-lg p-6 max-w-md w-full">
-                <h2 className="text-xl font-bold mb-4 text-purple-800">
+                <h2 className="text-xl font-bold mb-4 text-purple-700">
                   Edit Notes for {editingContact.firstName} {editingContact.lastName}
                 </h2>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-4 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 mb-4 min-h-[100px]"
+                  className="w-full px-4 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-300 mb-4 min-h-[100px]"
                   placeholder="Add notes about this contact..."
                 />
                 <div className="flex gap-3 justify-end">
@@ -700,7 +700,7 @@ export default function ChroniclePage() {
                   </button>
                   <button
                     onClick={handleSaveNotes}
-                    className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all"
+                    className="px-4 py-2 bg-gradient-to-r from-purple-300 to-pink-300 text-purple-800 rounded-lg hover:from-purple-400 hover:to-pink-400 transition-all"
                   >
                     Save
                   </button>

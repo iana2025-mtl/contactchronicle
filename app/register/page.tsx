@@ -54,18 +54,18 @@ export default function RegisterPage() {
       <main className="flex-1 container mx-auto px-4 py-6 sm:py-8 flex items-center justify-center">
         <div className="w-full max-w-md mx-4">
           <div className="bg-white rounded-lg shadow-lg border border-purple-200 p-6 sm:p-8 bg-gradient-to-br from-white to-purple-50">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-purple-800 text-center">Create Account</h1>
-            <p className="text-sm sm:text-base text-purple-600 text-center mb-6">Sign up to get started</p>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-purple-700 text-center">Create Account</h1>
+            <p className="text-sm sm:text-base text-purple-500 text-center mb-6">Sign up to get started</p>
 
             {error && (
-              <div className="bg-pink-100 border border-pink-300 text-pink-700 px-4 py-3 rounded-lg mb-4">
+              <div className="bg-pink-100 border border-pink-200 text-pink-600 px-4 py-3 rounded-lg mb-4">
                 {error}
               </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-purple-700 mb-1.5">
+                <label htmlFor="name" className="block text-sm font-medium text-purple-600 mb-1.5">
                   Full Name
                 </label>
                 <input
@@ -74,13 +74,13 @@ export default function RegisterPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
-                  className="w-full px-4 py-3 sm:py-2.5 text-base border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
+                  className="w-full px-4 py-3 sm:py-2.5 text-base border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-300 bg-white"
                   placeholder="John Doe"
                 />
               </div>
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-purple-700 mb-1.5">
+                <label htmlFor="email" className="block text-sm font-medium text-purple-600 mb-1.5">
                   Email Address
                 </label>
                 <input
@@ -89,13 +89,13 @@ export default function RegisterPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full px-4 py-3 sm:py-2.5 text-base border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
+                  className="w-full px-4 py-3 sm:py-2.5 text-base border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-300 bg-white"
                   placeholder="your.email@example.com"
                 />
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-purple-700 mb-1.5">
+                <label htmlFor="password" className="block text-sm font-medium text-purple-600 mb-1.5">
                   Password
                 </label>
                 <input
@@ -105,13 +105,13 @@ export default function RegisterPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={6}
-                  className="w-full px-4 py-3 sm:py-2.5 text-base border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
+                  className="w-full px-4 py-3 sm:py-2.5 text-base border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-300 bg-white"
                   placeholder="At least 6 characters"
                 />
               </div>
 
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-purple-700 mb-1.5">
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-purple-600 mb-1.5">
                   Confirm Password
                 </label>
                 <input
@@ -121,7 +121,7 @@ export default function RegisterPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                   minLength={6}
-                  className="w-full px-4 py-3 sm:py-2.5 text-base border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
+                  className="w-full px-4 py-3 sm:py-2.5 text-base border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-300 bg-white"
                   placeholder="Confirm your password"
                 />
               </div>
@@ -129,16 +129,16 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full px-4 py-3.5 sm:py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all font-medium shadow-md disabled:opacity-50 disabled:cursor-not-allowed text-base sm:text-sm"
+                className="w-full px-4 py-3.5 sm:py-3 bg-gradient-to-r from-purple-300 to-pink-300 text-purple-800 rounded-lg hover:from-purple-400 hover:to-pink-400 transition-all font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-base sm:text-sm"
               >
                 {loading ? 'Creating account...' : 'Sign Up'}
               </button>
             </form>
 
             <div className="mt-6 text-center">
-              <p className="text-sm text-purple-600">
+              <p className="text-sm text-purple-500">
                 Already have an account?{' '}
-                <Link href="/login" className="text-purple-600 hover:text-pink-600 font-medium underline">
+                <Link href="/login" className="text-purple-500 hover:text-pink-500 font-medium underline">
                   Sign in here
                 </Link>
               </p>

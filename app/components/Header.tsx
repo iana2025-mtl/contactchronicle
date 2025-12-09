@@ -43,8 +43,8 @@ export default function Header() {
                     href={link.href}
                     className={`px-3 py-2 rounded-lg transition-all text-sm xl:text-base ${
                       pathname === link.href
-                        ? 'bg-purple-200 text-purple-800 font-medium shadow-sm'
-                        : 'text-purple-700 hover:bg-pink-100 hover:text-pink-700'
+                        ? 'bg-purple-200 text-purple-700 font-medium shadow-sm'
+                        : 'text-purple-600 hover:bg-pink-100 hover:text-pink-600'
                     }`}
                   >
                     {link.label}
@@ -55,12 +55,12 @@ export default function Header() {
             <div className="flex items-center gap-3 xl:gap-4">
               {isAuthenticated ? (
                 <>
-                  <span className="text-xs xl:text-sm text-purple-700 hidden xl:block">
+                  <span className="text-xs xl:text-sm text-purple-600 hidden xl:block">
                     Welcome, <span className="font-medium">{user?.name}</span>
                   </span>
                   <button
                     onClick={handleLogout}
-                    className="px-3 xl:px-4 py-2 bg-pink-200 text-pink-700 rounded-lg hover:bg-pink-300 transition-colors text-xs xl:text-sm font-medium"
+                    className="px-3 xl:px-4 py-2 bg-pink-200 text-pink-600 rounded-lg hover:bg-pink-300 transition-colors text-xs xl:text-sm font-medium"
                   >
                     Logout
                   </button>
@@ -69,13 +69,13 @@ export default function Header() {
                 <>
                   <Link
                     href="/login"
-                    className="px-3 xl:px-4 py-2 text-purple-700 hover:text-pink-700 transition-colors text-xs xl:text-sm font-medium"
+                    className="px-3 xl:px-4 py-2 text-purple-600 hover:text-pink-600 transition-colors text-xs xl:text-sm font-medium"
                   >
                     Login
                   </Link>
                   <Link
                     href="/register"
-                    className="px-3 xl:px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all text-xs xl:text-sm font-medium shadow-sm"
+                    className="px-3 xl:px-4 py-2 bg-gradient-to-r from-purple-300 to-pink-300 text-purple-800 rounded-lg hover:from-purple-400 hover:to-pink-400 transition-all text-xs xl:text-sm font-medium shadow-sm"
                   >
                     Sign Up
                   </Link>
@@ -88,7 +88,7 @@ export default function Header() {
           {isAuthenticated && (
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-lg text-purple-700 hover:bg-pink-100 transition-colors"
+              className="lg:hidden p-2 rounded-lg text-purple-600 hover:bg-pink-100 transition-colors"
               aria-label="Toggle menu"
             >
               <svg
@@ -128,7 +128,7 @@ export default function Header() {
           )}
         </div>
 
-        {/* Mobile Menu Dropdown */}
+          {/* Mobile Menu Dropdown */}
         {mobileMenuOpen && isAuthenticated && (
           <div className="lg:hidden mt-4 pb-4 border-t border-pink-200 pt-4">
             <nav className="flex flex-col gap-2">
@@ -139,8 +139,8 @@ export default function Header() {
                   onClick={() => setMobileMenuOpen(false)}
                   className={`px-4 py-3 rounded-lg transition-all ${
                     pathname === link.href
-                      ? 'bg-purple-200 text-purple-800 font-medium shadow-sm'
-                      : 'text-purple-700 hover:bg-pink-100 hover:text-pink-700'
+                      ? 'bg-purple-200 text-purple-700 font-medium shadow-sm'
+                      : 'text-purple-600 hover:bg-pink-100 hover:text-pink-600'
                   }`}
                 >
                   {link.label}
@@ -152,7 +152,7 @@ export default function Header() {
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="w-full text-left px-4 py-3 bg-pink-200 text-pink-700 rounded-lg hover:bg-pink-300 transition-colors text-sm font-medium"
+                  className="w-full text-left px-4 py-3 bg-pink-200 text-pink-600 rounded-lg hover:bg-pink-300 transition-colors text-sm font-medium"
                 >
                   Logout
                 </button>

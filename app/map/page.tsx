@@ -855,7 +855,7 @@ export default function MapPage() {
         <Header />
         <main className="flex-1 container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-purple-800">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-purple-700">
               Location Map
             </h1>
             <div className="flex gap-2 flex-wrap">
@@ -866,19 +866,19 @@ export default function MapPage() {
                       setMapKey(prev => prev + 1);
                       console.log('🔄 Manual map refresh triggered');
                     }}
-                    className="px-4 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors whitespace-nowrap"
+                    className="px-4 py-2 text-sm bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-colors whitespace-nowrap"
                   >
                     🔄 Refresh Map
                   </button>
-                  <div className="px-4 py-2 text-sm bg-purple-50 text-purple-600 rounded-lg">
+                  <div className="px-4 py-2 text-sm bg-purple-50 text-purple-500 rounded-lg">
                     📍 {locationMarkers.length} location{locationMarkers.length !== 1 ? 's' : ''}
                   </div>
                 </>
               )}
-              <details className="px-4 py-2 text-xs bg-blue-50 text-blue-700 rounded-lg cursor-pointer">
+              <details className="px-4 py-2 text-xs bg-blue-50 text-blue-600 rounded-lg cursor-pointer">
                 <summary className="font-semibold">📊 Data Info</summary>
                 <div className="absolute mt-2 p-3 bg-white border border-purple-200 rounded-lg shadow-lg z-50 text-left min-w-[250px]">
-                  <p className="font-bold mb-2 text-purple-800">Current Data:</p>
+                  <p className="font-bold mb-2 text-purple-700">Current Data:</p>
                   <p>📍 Timeline events: {timelineEvents.length}</p>
                   <p>🌍 Geographic events: {timelineGeoEvents.length}</p>
                   <p>👥 Total contacts: {activeContacts.length}</p>
@@ -906,18 +906,18 @@ export default function MapPage() {
 
           {locationMarkers.length === 0 ? (
             <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-6 sm:p-8 text-center">
-              <p className="text-purple-600 mb-4">No geographic locations found.</p>
-              <p className="text-sm text-purple-500 mb-2">
+              <p className="text-purple-500 mb-4">No geographic locations found.</p>
+              <p className="text-sm text-purple-400 mb-2">
                 Add geographic events in your timeline or mention locations in contact notes to see them on the map.
               </p>
             </div>
           ) : (
             <>
               <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-3 sm:p-4 mb-4 sm:mb-6">
-                <p className="text-xs sm:text-sm text-purple-600 mb-1">
+                <p className="text-xs sm:text-sm text-purple-500 mb-1">
                   Click on a city marker to see contacts associated with that location.
                 </p>
-                <p className="text-xs sm:text-sm text-purple-500">
+                <p className="text-xs sm:text-sm text-purple-400">
                   Found {locationMarkers.length} location{locationMarkers.length !== 1 ? 's' : ''} ({locationMarkers.filter(p => p.source === 'timeline').length} from timeline, {locationMarkers.filter(p => p.source === 'notes').length} from notes)
                 </p>
               </div>
@@ -1001,16 +1001,16 @@ export default function MapPage() {
                         >
                           <Popup>
                             <div className="p-2">
-                              <h3 className="font-semibold text-purple-800 mb-1">{marker.displayName}</h3>
+                              <h3 className="font-semibold text-purple-700 mb-1">{marker.displayName}</h3>
                               {marker.source === 'timeline' && marker.startDate && (
-                                <p className="text-xs text-purple-600 mb-2">
+                                <p className="text-xs text-purple-500 mb-2">
                                   {marker.startDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} -{' '}
                                   {marker.endDate
                                     ? marker.endDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
                                     : 'Present'}
                                 </p>
                               )}
-                              <p className="text-xs text-purple-500">
+                              <p className="text-xs text-purple-400">
                                 {marker.contacts.length} contact{marker.contacts.length !== 1 ? 's' : ''} connected
                               </p>
                             </div>
@@ -1026,11 +1026,11 @@ export default function MapPage() {
                 <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-4 sm:p-6">
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <h2 className="text-xl sm:text-2xl font-bold text-purple-800 mb-1">
+                      <h2 className="text-xl sm:text-2xl font-bold text-purple-700 mb-1">
                         {selectedLocation.displayName}
                       </h2>
                       {selectedLocation.source === 'timeline' && selectedLocation.startDate && (
-                        <p className="text-sm text-purple-600">
+                        <p className="text-sm text-purple-500">
                           {selectedLocation.startDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} -{' '}
                           {selectedLocation.endDate
                             ? selectedLocation.endDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
@@ -1040,17 +1040,17 @@ export default function MapPage() {
                     </div>
                     <button
                       onClick={() => setSelectedLocation(null)}
-                      className="text-purple-500 hover:text-purple-700 text-2xl font-bold"
+                      className="text-purple-400 hover:text-purple-600 text-2xl font-bold"
                     >
                       ×
                     </button>
                   </div>
 
                   {selectedLocation.contacts.length === 0 ? (
-                    <p className="text-purple-500 text-sm">No contacts associated with this location.</p>
+                    <p className="text-purple-400 text-sm">No contacts associated with this location.</p>
                   ) : (
                     <>
-                      <p className="text-sm text-purple-700 mb-4">
+                      <p className="text-sm text-purple-600 mb-4">
                         Contacts ({selectedLocation.contacts.length}):
                       </p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
@@ -1059,14 +1059,14 @@ export default function MapPage() {
                             key={contact.id}
                             className="border border-purple-200 rounded-lg p-3 bg-gradient-to-br from-purple-50 to-white hover:shadow-md transition-shadow"
                           >
-                            <h3 className="font-semibold text-purple-800 text-sm mb-1">
+                            <h3 className="font-semibold text-purple-700 text-sm mb-1">
                               {contact.firstName} {contact.lastName}
                             </h3>
                             {contact.emailAddress && (
-                              <p className="text-xs text-purple-600 mb-1 truncate">{contact.emailAddress}</p>
+                              <p className="text-xs text-purple-500 mb-1 truncate">{contact.emailAddress}</p>
                             )}
                             {contact.dateAdded && (
-                              <p className="text-xs text-purple-500">Connected: {contact.dateAdded}</p>
+                              <p className="text-xs text-purple-400">Connected: {contact.dateAdded}</p>
                             )}
                           </div>
                         ))}
