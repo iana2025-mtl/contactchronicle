@@ -491,33 +491,64 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.error(`📦 After safety fix: ${finalContactsWithNotes.length} contacts with notes`);
     }
     
+    // FINAL VERIFICATION: Check that all updates that had notes actually made it into finalFixedContacts
+    updates.forEach(({ id, contact }) => {
+      if (contact.notes && contact.notes.trim()) {
+        const finalContact = finalFixedContacts.find(c => c.id === id);
+        if (!finalContact || !finalContact.notes || !finalContact.notes.trim()) {
+          console.error(`❌❌❌ CRITICAL: Update had notes but final contact doesn't!`);
+          console.error(`   Contact ID: ${id}`);
+          console.error(`   Update notes: "${contact.notes}"`);
+          console.error(`   Final contact:`, finalContact);
+          // Force add it one more time
+          if (finalContact) {
+            finalContact.notes = contact.notes;
+            console.error(`   🔧🔧🔧 FORCE ADDED notes to final contact`);
+          }
+        }
+      }
+    });
+    
     setContacts(finalFixedContacts);
     
-    // Immediately save to localStorage
+    // Immediately save to localStorage - use a fresh check of notes after all fixes
     if (user && isDataLoaded) {
       const contactsKey = `contactChronicle_contacts_${user.id}`;
       try {
-        // Safari compatibility: Verify data before saving
+        // Final check before saving
         const contactsWithNotesBeforeSave = finalFixedContacts.filter(c => c.notes && c.notes.trim());
-        console.error(`📦 Before save: ${contactsWithNotesBeforeSave.length} contacts have notes`);
+        console.error(`📦 BEFORE SAVE (after all fixes): ${contactsWithNotesBeforeSave.length} contacts have notes`);
+        
+        // Sample a few contacts with notes to verify
+        if (contactsWithNotesBeforeSave.length > 0) {
+          console.error(`📦 Sample contacts with notes before save:`);
+          contactsWithNotesBeforeSave.slice(0, 3).forEach(c => {
+            console.error(`   - ${c.firstName} ${c.lastName}: "${c.notes?.substring(0, 50)}..."`);
+          });
+        }
         
         const jsonString = JSON.stringify(finalFixedContacts);
-        // Safari compatibility: Check JSON string for notes
+        // Count notes in JSON string
         const notesCountInJSON = (jsonString.match(/"notes":\s*"[^"]+"/g) || []).length;
-        console.error(`📦 JSON string contains ${notesCountInJSON} notes fields`);
+        console.error(`📦 JSON string contains ${notesCountInJSON} notes fields with content`);
         
         localStorage.setItem(contactsKey, jsonString);
-        console.error(`📦 Saved batch update to localStorage`);
+        console.error(`📦 ✅ Saved batch update to localStorage`);
         
-        // Safari compatibility: Immediately verify what was saved
+        // IMMEDIATELY verify what was saved
         const savedJson = localStorage.getItem(contactsKey);
         if (savedJson) {
           const savedContacts: Contact[] = JSON.parse(savedJson);
           const savedWithNotes = savedContacts.filter(c => c.notes && c.notes.trim());
-          console.error(`📦 Verified after save: ${savedWithNotes.length} contacts with notes in localStorage`);
+          console.error(`📦 ✅ VERIFIED AFTER SAVE: ${savedWithNotes.length} contacts with notes in localStorage`);
           
           if (savedWithNotes.length !== contactsWithNotesBeforeSave.length) {
-            console.error(`⚠️⚠️⚠️ SAFARI ISSUE: Notes count mismatch! Before: ${contactsWithNotesBeforeSave.length}, After: ${savedWithNotes.length}`);
+            console.error(`⚠️⚠️⚠️ CRITICAL ISSUE: Notes count mismatch!`);
+            console.error(`   Before save: ${contactsWithNotesBeforeSave.length}`);
+            console.error(`   After save: ${savedWithNotes.length}`);
+            console.error(`   Difference: ${contactsWithNotesBeforeSave.length - savedWithNotes.length} notes were LOST!`);
+          } else {
+            console.error(`✅✅✅ SUCCESS: All notes were saved correctly!`);
           }
         }
       } catch (error) {
