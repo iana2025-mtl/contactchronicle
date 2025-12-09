@@ -149,8 +149,33 @@ export default function MapPage() {
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
+    // CRITICAL: On initial load, force a check after a short delay to catch any updates
+    const initialCheckTimeout = setTimeout(() => {
+      if (user) {
+        console.log('🔔 MAP PAGE: Initial load check - verifying contacts data');
+        const contactsKey = `contactChronicle_contacts_${user.id}`;
+        const stored = localStorage.getItem(contactsKey);
+        if (stored) {
+          try {
+            const storedContacts: Contact[] = JSON.parse(stored);
+            const storedWithNotes = storedContacts.filter(c => c.notes && c.notes.trim());
+            console.log(`  📝 Found ${storedWithNotes.length} contacts with notes in localStorage`);
+            if (storedWithNotes.length > 0) {
+              console.log('  📝 Sample notes:', storedWithNotes.slice(0, 3).map(c => ({
+                name: `${c.firstName} ${c.lastName}`,
+                notes: c.notes?.substring(0, 100)
+              })));
+            }
+          } catch (error) {
+            console.error('Error in initial check:', error);
+          }
+        }
+      }
+    }, 500);
+    
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearTimeout(initialCheckTimeout);
     };
   }, [user, contacts]);
 
