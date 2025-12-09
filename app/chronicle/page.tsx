@@ -60,9 +60,10 @@ export default function ChroniclePage() {
   };
 
   // SIMPLIFIED Import contacts from JSON file - DIAGNOSTIC VERSION
+  // VERSION: 2.0 - CACHE BUSTED
   const handleImportContacts = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    // CRITICAL ALERT - confirm function is called
-    alert('🚨 NEW IMPORT FUNCTION CALLED\n\nIf you see this, the new code is loaded!\n\nClick OK to continue...');
+    // CRITICAL ALERT - confirm function is called - VERSION 2.0
+    alert('🚨🚨🚨 NEW IMPORT FUNCTION V2.0 CALLED 🚨🚨🚨\n\nIf you see this alert, the new code is loaded!\n\nVersion: 2.0 (Cache Bust)\n\nClick OK to continue...');
     
     const file = event.target.files?.[0];
     if (!file) {
