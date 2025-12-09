@@ -146,6 +146,7 @@ export default function ChroniclePage() {
         if (!existing && imported.emailAddress && imported.emailAddress.trim()) {
           existing = currentContacts.find(c => 
             c.emailAddress && 
+            imported.emailAddress &&
             c.emailAddress.toLowerCase().trim() === imported.emailAddress.toLowerCase().trim()
           );
         }
@@ -547,7 +548,7 @@ export default function ChroniclePage() {
                       domain={[0, 'dataMax']}
                       width={60}
                     />
-                    <Tooltip formatter={(value: number | string) => [value, 'Contacts']} />
+                    <Tooltip formatter={(value: any) => [value, 'Contacts']} />
                     <Bar dataKey="contacts" fill="url(#colorGradient)" radius={[8, 8, 0, 0]}>
                       <defs>
                         <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">

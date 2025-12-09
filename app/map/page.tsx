@@ -143,8 +143,12 @@ export default function MapPage() {
   const [mapKey, setMapKey] = useState(0);
   const [missingCities, setMissingCities] = useState<Set<string>>(new Set());
   const [localContacts, setLocalContacts] = useState<Contact[]>([]);
+  const [localTimelineEvents, setLocalTimelineEvents] = useState<TimelineEvent[]>([]);
+  const [timelineSynced, setTimelineSynced] = useState(false);
   const mapInstanceRef = useRef<any>(null);
   const lastContactsHashRef = useRef<string>('');
+  const lastTimelineHashRef = useRef<string>('');
+  const lastTimelineWatchHashRef = useRef<string>('');
   const lastStorageCheckRef = useRef<string>('');
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -249,10 +253,95 @@ export default function MapPage() {
     };
   }, [user]);
 
+  // ============================================================================
+  // TIMELINE SYNC: Sync timeline events from localStorage
+  // ============================================================================
+  useEffect(() => {
+    if (!user) {
+      setLocalTimelineEvents([]);
+      return;
+    }
+
+    const syncTimeline = () => {
+      const timelineKey = `contactChronicle_timeline_${user.id}`;
+      const stored = localStorage.getItem(timelineKey);
+
+      try {
+        // Parse stored data or use empty array if null
+        const storedTimeline: TimelineEvent[] = stored ? JSON.parse(stored) : [];
+        
+        // Create hash to detect changes (even for empty arrays)
+        const storedHash = JSON.stringify(
+          storedTimeline.map(e => ({
+            id: e.id,
+            monthYear: e.monthYear,
+            professionalEvent: e.professionalEvent || '',
+            personalEvent: e.personalEvent || '',
+            geographicEvent: e.geographicEvent || '',
+          }))
+        );
+
+          if (storedHash !== lastTimelineHashRef.current) {
+            console.log('🔄 MAP: Timeline synced from localStorage');
+            console.log(`  📊 Total events: ${storedTimeline.length}`);
+            
+            const geoEvents = storedTimeline.filter(e => e.geographicEvent && e.geographicEvent.trim());
+            console.log(`  🌍 Geographic events: ${geoEvents.length}`);
+            
+            setLocalTimelineEvents([...storedTimeline]);
+            setTimelineSynced(true);
+            lastTimelineHashRef.current = storedHash;
+            
+            // Force map recalculation
+            console.log(`  🗺️ Forcing map recalculation (timeline update)`);
+            setMapKey(prev => prev + 1);
+          }
+      } catch (error) {
+        console.error('❌ MAP: Error syncing timeline:', error);
+      }
+    };
+
+    // Initial sync
+    syncTimeline();
+
+    // Poll localStorage every 100ms
+    const pollInterval = setInterval(syncTimeline, 100);
+
+    // Listen for custom events
+    const handleTimelineUpdated = () => {
+      console.log('🔔 MAP: timelineUpdated event received');
+      syncTimeline();
+    };
+
+    // Listen for storage events (cross-tab)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === `contactChronicle_timeline_${user.id}` && e.newValue) {
+        console.log('🔔 MAP: Timeline storage event detected');
+        syncTimeline();
+      }
+    };
+
+    window.addEventListener('timelineUpdated', handleTimelineUpdated);
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener('timelineUpdated', handleTimelineUpdated);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [user]);
+
   // Use synced contacts or fallback to context
   const activeContacts = useMemo(() => {
     return localContacts.length > 0 ? localContacts : contacts;
   }, [localContacts, contacts]);
+
+  // Use synced timeline events or fallback to context
+  const activeTimelineEvents = useMemo(() => {
+    // Prefer synced timeline events from localStorage once sync has occurred
+    // Use context data only before the first sync
+    return timelineSynced ? localTimelineEvents : timelineEvents;
+  }, [localTimelineEvents, timelineEvents, timelineSynced]);
 
   // ============================================================================
   // UTILITY FUNCTIONS: Coordinate lookup and validation
@@ -529,14 +618,14 @@ export default function MapPage() {
   const locationMarkers = useMemo(() => {
     console.log('🗺️ ===== RECALCULATING ALL LOCATION MARKERS =====');
     console.log(`  📊 Active contacts: ${activeContacts.length}`);
-    console.log(`  📊 Timeline events: ${timelineEvents.length}`);
+    console.log(`  📊 Timeline events: ${activeTimelineEvents.length}`);
 
     const markersMap = new Map<string, LocationMarker>();
     const contactsWithNotes = activeContacts.filter(c => c.notes && c.notes.trim());
     console.log(`  📝 Contacts with notes: ${contactsWithNotes.length}`);
 
-    // Process timeline events
-    const geoEvents = timelineEvents
+    // Process timeline events (use activeTimelineEvents)
+    const geoEvents = activeTimelineEvents
       .filter(e => e.geographicEvent?.trim())
       .map(e => ({ ...e, date: parseDate(e.monthYear) }))
       .filter(e => e.date)
@@ -624,7 +713,7 @@ export default function MapPage() {
     console.log('🗺️ ===========================================');
 
     return markersArray;
-  }, [activeContacts, timelineEvents, extractLocationFromTimeline, extractLocationsFromNotes, getCityCoordinates, validateCoordinates, parseDate]);
+  }, [activeContacts, activeTimelineEvents, extractLocationFromTimeline, extractLocationsFromNotes, getCityCoordinates, validateCoordinates, parseDate]);
 
   // ============================================================================
   // MAP CALCULATIONS: Center and bounds
@@ -717,6 +806,40 @@ export default function MapPage() {
       });
     }
   }, [activeContacts]);
+
+  // Watch timeline events for changes and force map update
+  useEffect(() => {
+    // Create hash of timeline events to detect changes
+    const timelineHash = JSON.stringify(
+      activeTimelineEvents.map(e => ({
+        id: e.id,
+        monthYear: e.monthYear,
+        professionalEvent: e.professionalEvent || '',
+        personalEvent: e.personalEvent || '',
+        geographicEvent: e.geographicEvent || '',
+      }))
+    );
+
+    // Compare with previous hash (initialize on first run)
+    if (lastTimelineWatchHashRef.current === '') {
+      lastTimelineWatchHashRef.current = timelineHash;
+      return; // Skip first run
+    }
+
+    if (timelineHash !== lastTimelineWatchHashRef.current) {
+      console.log('🔄 MAP: Timeline events changed - forcing map update');
+      const geoEvents = activeTimelineEvents.filter(e => e.geographicEvent && e.geographicEvent.trim());
+      console.log(`  📊 Total timeline events: ${activeTimelineEvents.length}`);
+      console.log(`  🌍 Geographic events: ${geoEvents.length}`);
+      
+      lastTimelineWatchHashRef.current = timelineHash;
+      setMapKey(prev => {
+        const newKey = prev + 1;
+        console.log(`  🗺️ Map key updated from ${prev} to ${newKey} - timeline markers will recalculate`);
+        return newKey;
+      });
+    }
+  }, [activeTimelineEvents]);
 
   // ============================================================================
   // LEAFLET SETUP
@@ -847,7 +970,7 @@ export default function MapPage() {
   }
 
   const contactsWithNotes = activeContacts.filter(c => c.notes && c.notes.trim());
-  const timelineGeoEvents = timelineEvents.filter(e => e.geographicEvent && e.geographicEvent.trim());
+  const timelineGeoEvents = activeTimelineEvents.filter(e => e.geographicEvent && e.geographicEvent.trim());
 
   return (
     <ProtectedRoute>
@@ -879,7 +1002,7 @@ export default function MapPage() {
                 <summary className="font-semibold">📊 Data Info</summary>
                 <div className="absolute mt-2 p-3 bg-white border border-purple-200 rounded-lg shadow-lg z-50 text-left min-w-[250px]">
                   <p className="font-bold mb-2 text-purple-700">Current Data:</p>
-                  <p>📍 Timeline events: {timelineEvents.length}</p>
+                  <p>📍 Timeline events: {activeTimelineEvents.length}</p>
                   <p>🌍 Geographic events: {timelineGeoEvents.length}</p>
                   <p>👥 Total contacts: {activeContacts.length}</p>
                   <p>📝 Contacts with notes: {contactsWithNotes.length}</p>
@@ -937,32 +1060,11 @@ export default function MapPage() {
                     zoomControl={true}
                     style={{ height: '100%', width: '100%', zIndex: 1 }}
                     className="z-10"
-                    whenReady={(mapEvent: any) => {
-                      const map = mapEvent.target;
-                      mapInstanceRef.current = map;
-                      setMapReady(true);
-                      console.log('🗺️ Map container ready');
-                      console.log(`   Initial center: [${map.getCenter().lat}, ${map.getCenter().lng}]`);
-                      console.log(`   Initial zoom: ${map.getZoom()}`);
-                      
-                      // Force fit bounds immediately when map is ready
-                      if (mapBounds && locationMarkers.length > 0) {
-                        setTimeout(() => {
-                          try {
-                            const L = require('leaflet');
-                            const leafletBounds = L.latLngBounds(mapBounds[0], mapBounds[1]);
-                            const isWorldwide = Math.abs(mapBounds[1][1] - mapBounds[0][1]) > 50;
-                            map.fitBounds(leafletBounds, {
-                              padding: isWorldwide ? [100, 100] : [50, 50],
-                              maxZoom: isWorldwide ? 10 : 15,
-                              animate: false // No animation for initial fit
-                            });
-                            console.log('🗺️ Map fitted to bounds in whenReady callback');
-                            console.log(`   Final zoom: ${map.getZoom()}, center: [${map.getCenter().lat}, ${map.getCenter().lng}]`);
-                          } catch (error) {
-                            console.error('❌ Error in whenReady fitBounds:', error);
-                          }
-                        }, 300);
+                    ref={(map) => {
+                      if (map) {
+                        mapInstanceRef.current = map;
+                        setMapReady(true);
+                        console.log('🗺️ Map container ready');
                       }
                     }}
                   >

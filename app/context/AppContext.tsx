@@ -156,6 +156,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const timelineKey = `contactChronicle_timeline_${user.id}`;
       try {
         localStorage.setItem(timelineKey, JSON.stringify(timelineEvents));
+        console.log(`💾 Timeline auto-saved: ${timelineEvents.length} events`);
+        
+        // Dispatch event immediately after saving
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('timelineUpdated', {
+            detail: { timelineEvents, timestamp: Date.now() }
+          }));
+        }, 50);
       } catch (error) {
         console.error('Error saving timeline data:', error);
       }
@@ -193,21 +201,62 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ...event,
       id: Date.now().toString(),
     };
-    setTimelineEvents([...timelineEvents, newEvent].sort((a, b) => {
-      const [monthA, yearA] = a.monthYear.split('/');
-      const [monthB, yearB] = b.monthYear.split('/');
-      const dateA = new Date(parseInt(yearA), parseInt(monthA) - 1);
-      const dateB = new Date(parseInt(yearB), parseInt(monthB) - 1);
-      return dateA.getTime() - dateB.getTime();
-    }));
+    setTimelineEvents(prevEvents => {
+      const updated = [...prevEvents, newEvent].sort((a, b) => {
+        const [monthA, yearA] = a.monthYear.split('/');
+        const [monthB, yearB] = b.monthYear.split('/');
+        const dateA = new Date(parseInt(yearA), parseInt(monthA) - 1);
+        const dateB = new Date(parseInt(yearB), parseInt(monthB) - 1);
+        return dateA.getTime() - dateB.getTime();
+      });
+      
+      // Dispatch event for map page to detect changes
+      if (user && isDataLoaded) {
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('timelineUpdated', {
+            detail: { timelineEvents: updated, timestamp: Date.now() }
+          }));
+        }, 100);
+      }
+      
+      return updated;
+    });
   };
 
   const updateTimelineEvent = (id: string, event: Partial<TimelineEvent>) => {
-    setTimelineEvents(timelineEvents.map(e => e.id === id ? { ...e, ...event } : e));
+    setTimelineEvents(prevEvents => {
+      const updated = prevEvents.map(e => e.id === id ? { ...e, ...event } : e);
+      const newArray = [...updated]; // Ensure new array reference
+      
+      // Dispatch event for map page to detect changes
+      if (user && isDataLoaded) {
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('timelineUpdated', {
+            detail: { timelineEvents: newArray, timestamp: Date.now() }
+          }));
+        }, 100);
+      }
+      
+      return newArray;
+    });
   };
 
   const deleteTimelineEvent = (id: string) => {
-    setTimelineEvents(timelineEvents.filter(e => e.id !== id));
+    setTimelineEvents(prevEvents => {
+      const updated = prevEvents.filter(e => e.id !== id);
+      const newArray = [...updated]; // Ensure new array reference
+      
+      // Dispatch event for map page to detect changes
+      if (user && isDataLoaded) {
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('timelineUpdated', {
+            detail: { timelineEvents: newArray, timestamp: Date.now() }
+          }));
+        }, 100);
+      }
+      
+      return newArray;
+    });
   };
 
   const addContacts = (newContacts: Contact[]) => {
