@@ -61,6 +61,9 @@ export default function ChroniclePage() {
 
   // SIMPLIFIED Import contacts from JSON file - DIAGNOSTIC VERSION
   const handleImportContacts = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    // CRITICAL ALERT - confirm function is called
+    alert('🚨 NEW IMPORT FUNCTION CALLED\n\nIf you see this, the new code is loaded!\n\nClick OK to continue...');
+    
     const file = event.target.files?.[0];
     if (!file) {
       alert('❌ No file selected!');
@@ -93,6 +96,7 @@ export default function ChroniclePage() {
         `📤 FILE PARSED\n` +
         `Total contacts: ${importedContacts.length}\n` +
         `Contacts with notes: ${importedWithNotes.length}\n\n` +
+        `First contact with notes: ${importedWithNotes[0] ? `${importedWithNotes[0].firstName} ${importedWithNotes[0].lastName}: "${importedWithNotes[0].notes}"` : 'None'}\n\n` +
         `Click OK to continue import...`
       );
 
@@ -188,29 +192,47 @@ export default function ChroniclePage() {
       if (updates.length > 0) {
         // VERIFY notes are in the update objects before calling batch update
         const verifiedUpdates = updates.map(({ id, contact }) => {
-          // Double-check: if imported had notes, ensure they're in the update
+          // Find the original imported contact that matches this update
+          const existing = contacts.find(c => c.id === id);
+          if (!existing) return { id, contact };
+          
+          // Find imported contact by matching the existing contact to the imported
           const importedMatch = importedContacts.find(ic => {
-            const existing = contacts.find(c => c.id === id);
-            if (!existing) return false;
-            return (
-              (ic.id === id) ||
-              (ic.emailAddress && existing.emailAddress && ic.emailAddress.toLowerCase() === existing.emailAddress.toLowerCase()) ||
-              (ic.firstName === existing.firstName && ic.lastName === existing.lastName)
-            );
+            // Match by ID if possible
+            if (ic.id === id) return true;
+            // Match by email
+            if (ic.emailAddress && existing.emailAddress && 
+                ic.emailAddress.toLowerCase() === existing.emailAddress.toLowerCase()) return true;
+            // Match by name
+            if (ic.firstName === existing.firstName && ic.lastName === existing.lastName) return true;
+            return false;
           });
           
           // If imported had notes but update doesn't, force add it
           if (importedMatch?.notes && importedMatch.notes.trim() && (!contact.notes || !contact.notes.trim())) {
             contact = { ...contact, notes: importedMatch.notes };
+            console.error(`🔧 FIXED: Added notes to ${existing.firstName} ${existing.lastName}: "${importedMatch.notes}"`);
           }
           
           return { id, contact };
         });
 
+        const updatesWithNotes = verifiedUpdates.filter(u => u.contact.notes && u.contact.notes.trim());
+        
+        alert(
+          `🔄 READY TO UPDATE\n` +
+          `Total updates: ${verifiedUpdates.length}\n` +
+          `Updates with notes: ${updatesWithNotes.length}\n\n` +
+          `${updatesWithNotes.length > 0 ? `First update with notes:\n${updatesWithNotes[0].contact.firstName} ${updatesWithNotes[0].contact.lastName}: "${updatesWithNotes[0].contact.notes?.substring(0, 50)}..."` : '⚠️ WARNING: No updates have notes!'}\n\n` +
+          `Click OK to call updateMultipleContacts...`
+        );
+
         console.error(`🚨🚨🚨 CALLING BATCH UPDATE WITH ${verifiedUpdates.length} UPDATES 🚨🚨🚨`);
-        console.error(`Updates with notes: ${verifiedUpdates.filter(u => u.contact.notes && u.contact.notes.trim()).length}`);
+        console.error(`Updates with notes: ${updatesWithNotes.length}`);
         
         updateMultipleContacts(verifiedUpdates);
+        
+        alert(`✅ updateMultipleContacts CALLED!\n\nCheck console and then click "🔍 Check Data" to verify.`);
       }
 
       // Add new contacts
