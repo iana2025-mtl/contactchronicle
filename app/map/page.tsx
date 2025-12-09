@@ -390,11 +390,16 @@ export default function MapPage() {
     
     // Also try pattern matching for "City, State", "City State", "City, Country", "City Country", etc.
     // Pattern order matters - more specific patterns first
+    // ENHANCED: More flexible patterns to catch more variations
     const patterns = [
-      /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*,\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g, // "Berlin, Germany" or "New York, NY"
-      /\b([A-Z][a-z]+)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g, // "Berlin Germany" or "New York NY" or "Virginia Beach VA" (space separated)
-      /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),?\s+([A-Z]{2})\b/g, // "New York, NY" or "New York NY" or "Ottawa CA" (2-letter code)
+      /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*,\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g, // "Berlin, Germany" or "New York, NY" or "Houston, Texas"
+      /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g, // "Berlin Germany" or "New York NY" or "Houston Texas" or "Virginia Beach VA" (space separated)
+      /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),?\s+([A-Z]{2})\b/g, // "New York, NY" or "New York NY" or "Houston TX" or "Ottawa CA" (2-letter code)
       /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+City\b/gi, // "New York City"
+      // Add pattern for "in City" or "at City" or "from City"
+      /\b(?:in|at|from|to|near|by)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g, // "in Houston" or "at New York" or "from Berlin"
+      // Add pattern for standalone capitalized city names (at least 3 chars)
+      /\b([A-Z][a-z]{2,})\b/g, // Any capitalized word (potential city name)
     ];
     
     for (const pattern of patterns) {
@@ -404,14 +409,37 @@ export default function MapPage() {
       while ((match = pattern.exec(noteText)) !== null) {
         if (match[1]) {
           let cityToCheck = match[1].trim();
+          
+          // Skip common non-city words that might be capitalized
+          const skipWords = ['The', 'This', 'That', 'These', 'Those', 'There', 'Here', 'When', 'Where', 'What', 'Who', 'How', 'Why', 'First', 'Last', 'Next', 'Previous', 'Met', 'Meet', 'Worked', 'Work', 'Lived', 'Live', 'Moved', 'Move', 'Born', 'Grew', 'Studied', 'Study', 'Graduated', 'Attended', 'Joined', 'Left', 'Started', 'Ended', 'During', 'After', 'Before', 'Since', 'Until', 'With', 'Without', 'From', 'To', 'In', 'At', 'On', 'By', 'For', 'And', 'Or', 'But', 'Not', 'All', 'Some', 'Many', 'Most', 'Each', 'Every', 'Both', 'Either', 'Neither', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Year', 'Years', 'Month', 'Months', 'Week', 'Weeks', 'Day', 'Days', 'Today', 'Yesterday', 'Tomorrow'];
+          if (skipWords.includes(cityToCheck)) continue;
+          
           if (match[2]) {
             const secondPart = match[2].trim();
             
             // Check if match[2] is a state code (2 letters)
             if (secondPart.length === 2 && /^[A-Z]{2}$/.test(secondPart)) {
-              cityToCheck = `${cityToCheck}, ${secondPart}`;
+              const cityWithState = `${cityToCheck}, ${secondPart}`;
+              const coords = getCityCoordinates(cityWithState);
+              if (coords) {
+                if (!locations.some(loc => loc.toLowerCase() === cityWithState.toLowerCase())) {
+                  locations.push(cityWithState);
+                  console.log(`  ✅ Pattern matched "${cityWithState}" from notes`);
+                }
+                continue;
+              }
+              // Also try without comma
+              const cityWithStateNoComma = `${cityToCheck} ${secondPart}`;
+              const coordsNoComma = getCityCoordinates(cityWithStateNoComma);
+              if (coordsNoComma) {
+                if (!locations.some(loc => loc.toLowerCase() === cityWithStateNoComma.toLowerCase())) {
+                  locations.push(cityWithStateNoComma);
+                  console.log(`  ✅ Pattern matched "${cityWithStateNoComma}" from notes`);
+                }
+                continue;
+              }
             } else {
-              // It's a country or state name (e.g., "Germany", "Poland", "Florida")
+              // It's a country or state name (e.g., "Germany", "Poland", "Texas", "Florida")
               // Try both with and without comma
               const withComma = `${cityToCheck}, ${secondPart}`;
               const withoutComma = `${cityToCheck} ${secondPart}`;
@@ -435,29 +463,49 @@ export default function MapPage() {
                 }
                 continue;
               }
-              
-              // Also try just the city name
-              const coordsCity = getCityCoordinates(cityToCheck);
-              if (coordsCity) {
-                if (!locations.some(loc => loc.toLowerCase() === cityToCheck.toLowerCase())) {
-                  locations.push(cityToCheck);
-                  console.log(`  ✅ Pattern matched "${cityToCheck}" from notes`);
-                }
-                continue;
-              }
             }
-          }
-          
-          // Try the city name alone if we haven't found it yet
-          const coords = getCityCoordinates(cityToCheck);
-          if (coords) {
-            if (!locations.some(loc => loc.toLowerCase() === cityToCheck.toLowerCase())) {
-              locations.push(cityToCheck);
-              console.log(`  ✅ Pattern matched "${cityToCheck}" from notes`);
+            
+            // Also try just the city name if combo didn't work
+            const coordsCity = getCityCoordinates(cityToCheck);
+            if (coordsCity) {
+              if (!locations.some(loc => loc.toLowerCase() === cityToCheck.toLowerCase())) {
+                locations.push(cityToCheck);
+                console.log(`  ✅ Pattern matched "${cityToCheck}" from notes`);
+              }
+              continue;
+            }
+          } else {
+            // Single city name (from "in City" pattern or standalone)
+            // Try the city name
+            const coords = getCityCoordinates(cityToCheck);
+            if (coords) {
+              if (!locations.some(loc => loc.toLowerCase() === cityToCheck.toLowerCase())) {
+                locations.push(cityToCheck);
+                console.log(`  ✅ Pattern matched "${cityToCheck}" from notes`);
+              }
+            } else {
+              // Try lowercase version
+              const coordsLower = getCityCoordinates(cityToCheck.toLowerCase());
+              if (coordsLower) {
+                if (!locations.some(loc => loc.toLowerCase() === cityToCheck.toLowerCase())) {
+                  locations.push(cityToCheck.toLowerCase());
+                  console.log(`  ✅ Pattern matched "${cityToCheck.toLowerCase()}" (lowercase) from notes`);
+                }
+              }
             }
           }
         }
       }
+    }
+    
+    // Final logging - show what locations were found
+    if (locations.length > 0) {
+      console.log(`  📍 Extracted ${locations.length} location(s) from "${contact.firstName} ${contact.lastName}":`, locations);
+    } else {
+      console.log(`  ⚠️ No locations extracted from "${contact.firstName} ${contact.lastName}" notes. Note text: "${noteText.substring(0, 200)}"`);
+      // Log all known city names for debugging
+      const knownCities = Object.keys(cityCoordinates).slice(0, 20); // Show first 20
+      console.log(`  💡 Known cities include:`, knownCities.join(', '));
     }
     
     return locations;
