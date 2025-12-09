@@ -371,7 +371,12 @@ export default function ChroniclePage() {
       console.log('  - Contact name:', `${editingContact.firstName} ${editingContact.lastName}`);
       console.log('  - New notes:', notes);
       console.log('  - Notes length:', notes.length);
+      
+      // Save notes
       updateContact(editingContact.id, { notes: notes.trim() });
+      
+      console.log('✅ Chronicle: updateContact called - map should detect change and update automatically');
+      console.log('  💡 Navigate to Map page to see updated locations');
       
       // Force a small delay to ensure state updates, then log verification
       setTimeout(() => {
@@ -383,6 +388,15 @@ export default function ChroniclePage() {
             notesLength: updated.notes?.length || 0,
             notesPreview: updated.notes?.substring(0, 100)
           });
+          
+          // Check for location mentions in the notes
+          const noteText = updated.notes?.toLowerCase() || '';
+          const locationKeywords = ['houston', 'zurich', 'berlin', 'paris', 'london', 'new york', 'montreal', 'warsaw', 'rome', 'tampa', 'ottawa', 'virginia beach', 'austin', 'chicago', 'boston', 'miami', 'seattle', 'atlanta', 'philadelphia', 'san francisco', 'los angeles'];
+          const foundLocations = locationKeywords.filter(keyword => noteText.includes(keyword));
+          if (foundLocations.length > 0) {
+            console.log(`  📍 Detected location mentions in notes: ${foundLocations.join(', ')}`);
+            console.log(`  🗺️ These locations should appear on the map automatically!`);
+          }
         } else {
           console.error('❌ Chronicle: Contact not found after update!');
         }

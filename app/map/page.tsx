@@ -167,13 +167,24 @@ export default function MapPage() {
   }, [contacts]);
 
   // Force map re-render when contacts or timeline changes
+  // CRITICAL: This effect MUST run whenever contacts or their notes change
   useEffect(() => {
     console.log('🔄 MAP PAGE: Data change detected - forcing map update!');
     console.log(`  📊 Contacts array length: ${contacts.length}`);
+    console.log(`  📊 Contacts array reference changed:`, contacts);
     const contactsWithNotes = contacts.filter(c => c.notes && c.notes.trim());
     console.log(`  📝 Contacts with notes: ${contactsWithNotes.length}`);
     console.log(`  📍 Timeline events with geographic: ${timelineEvents.filter(e => e.geographicEvent && e.geographicEvent.trim()).length}`);
     console.log(`  🔑 Contacts notes hash: ${contactsNotesHash.substring(0, 100)}...`);
+    
+    // Log sample of contacts with notes to verify they're present
+    if (contactsWithNotes.length > 0) {
+      console.log(`  📝 Sample contacts with notes:`, contactsWithNotes.slice(0, 3).map(c => ({
+        id: c.id,
+        name: `${c.firstName} ${c.lastName}`,
+        notesPreview: c.notes?.substring(0, 100)
+      })));
+    }
     
     // Check for Zurich specifically
     const zurichMentions = contacts.filter(c => 
@@ -203,7 +214,7 @@ export default function MapPage() {
       console.log(`  🗺️ Map key updated from ${prev} to ${newKey} - map will remount and recalculate all markers`);
       return newKey;
     });
-  }, [contactsNotesHash, timelineSerialized, contacts.length, contacts]); // Add full contacts array as dependency to catch any changes
+  }, [contactsNotesHash, timelineSerialized, contacts]); // CRITICAL: Include full contacts array to detect ANY changes
 
   // Set up Leaflet icons once when component mounts
   useEffect(() => {
@@ -1022,7 +1033,7 @@ export default function MapPage() {
                 <div className="w-full h-[400px] sm:h-[500px] lg:h-[600px] relative min-h-[400px]">
                   {locationPeriods.length > 0 && (
                     <MapContainer
-                      key={`map-${mapKey}-${contactsNotesHash.substring(0, 50).replace(/[^a-zA-Z0-9]/g, '')}-${locationPeriods.length}-${contacts.filter(c => c.notes && c.notes.trim()).length}`}
+                      key={`map-${mapKey}-${contactsNotesHash.substring(0, 50).replace(/[^a-zA-Z0-9]/g, '')}-${locationPeriods.length}-${contacts.filter(c => c.notes && c.notes.trim()).length}-${Date.now()}`}
                       center={[mapCenter.lat, mapCenter.lng]}
                       zoom={locationPeriods.length === 1 ? 10 : 2}
                       minZoom={2}
