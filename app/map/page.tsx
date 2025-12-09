@@ -522,9 +522,8 @@ export default function MapPage() {
       // Trigger geocoding in background (don't await - will update map when done)
       geocodeCity(cityName).then((geocoded) => {
         if (geocoded) {
-          console.log(`✅ New city geocoded: "${cityName}" - map will update`);
-          // Force map recalculation after geocoding
-          setMapKey(prev => prev + 1);
+          console.log(`✅ New city geocoded: "${cityName}" - map will update naturally`);
+          // Don't force map update - locationMarkers will detect change via allCityCoordinates
         } else {
           // Track as missing if geocoding failed
           setMissingCities(prev => {
@@ -1172,30 +1171,6 @@ export default function MapPage() {
     };
   }, [mapReady, locationMarkers.length, mapBounds, locationMarkers]);
 
-  // Track user interaction with map
-  useEffect(() => {
-    if (!mapReady || !mapInstanceRef.current) return;
-
-    const map = mapInstanceRef.current;
-    
-    const handleUserInteraction = () => {
-      userInteractedRef.current = true;
-      console.log('🗺️ User interacted with map - disabling auto-fit bounds');
-    };
-
-    // Listen for zoom and pan events
-    map.on('zoomstart', handleUserInteraction);
-    map.on('dragstart', handleUserInteraction);
-    map.on('zoom', handleUserInteraction);
-    map.on('moveend', handleUserInteraction);
-
-    return () => {
-      map.off('zoomstart', handleUserInteraction);
-      map.off('dragstart', handleUserInteraction);
-      map.off('zoom', handleUserInteraction);
-      map.off('moveend', handleUserInteraction);
-    };
-  }, [mapReady]);
 
   useEffect(() => {
     setIsClient(true);
@@ -1310,9 +1285,18 @@ export default function MapPage() {
                     className="z-10"
                     ref={(map) => {
                       if (map) {
-                        mapInstanceRef.current = map;
+                        const mapInstance = map.target || map;
+                        mapInstanceRef.current = mapInstance;
                         setMapReady(true);
                         console.log('🗺️ Map container ready');
+                        
+                        // Set up user interaction tracking
+                        const handleUserInteraction = () => {
+                          userInteractedRef.current = true;
+                        };
+                        
+                        mapInstance.on('zoomstart', handleUserInteraction);
+                        mapInstance.on('dragstart', handleUserInteraction);
                       }
                     }}
                   >
