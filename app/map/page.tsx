@@ -152,7 +152,7 @@ export default function MapPage() {
     }
     
     // Search for common locations in notes
-    const locationKeywords = ['new york', 'berlin', 'montreal', 'warsaw', 'rome', 'tampa', 'ottawa', 'virginia beach'];
+    const locationKeywords = ['new york', 'berlin', 'montreal', 'warsaw', 'rome', 'tampa', 'ottawa', 'virginia beach', 'houston'];
     locationKeywords.forEach(keyword => {
       const mentions = contacts.filter(c => 
         c.notes && c.notes.toLowerCase().includes(keyword)
