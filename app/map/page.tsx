@@ -545,12 +545,23 @@ export default function MapPage() {
       if (!contact.notes || !contact.notes.trim()) return;
       
       processedCount++;
+      
+      // Check specifically for Zurich in notes for debugging
+      if (contact.notes.toLowerCase().includes('zurich') || contact.notes.toLowerCase().includes('zürich')) {
+        console.log(`  🇨🇭 FOUND ZURICH in ${contact.firstName} ${contact.lastName}'s notes:`, contact.notes);
+      }
+      
       // Extract locations from notes
       const locations = extractLocationsFromNotes(contact);
       
       if (locations.length > 0) {
         locationsFoundCount += locations.length;
         console.log(`  📍 Contact ${contact.firstName} ${contact.lastName}: Found ${locations.length} location(s):`, locations);
+        
+        // Check if Zurich was found in locations
+        if (locations.some(loc => loc.toLowerCase().includes('zurich'))) {
+          console.log(`  ✅✅✅ ZURICH DETECTED in locations for ${contact.firstName} ${contact.lastName}!!!`);
+        }
         
         locations.forEach(locationName => {
           const coordinates = getCityCoordinates(locationName);
