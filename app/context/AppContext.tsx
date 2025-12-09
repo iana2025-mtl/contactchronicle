@@ -449,17 +449,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const contactsWithNotes = finalContacts.filter(c => c.notes && c.notes.trim());
     console.error(`📦 Contacts with notes after batch: ${contactsWithNotes.length}`);
     
-    setContacts(finalContacts);
+    // CRITICAL SAFETY CHECK: Verify that contacts that should have notes actually have them
+    // This catches cases where notes were lost during merge
+    let fixedCount = 0;
+    const fixedContacts = finalContacts.map(c => {
+      // Check if this contact was in the updates and should have notes
+      const update = updates.find(u => u.id === c.id);
+      if (update && update.contact.notes && update.contact.notes.trim()) {
+        // Update had notes - verify merged contact has them
+        if (!c.notes || !c.notes.trim()) {
+          console.error(`⚠️⚠️⚠️ SAFETY FIX: Contact "${c.firstName} ${c.lastName}" should have notes but doesn't!`);
+          console.error(`  Update notes: "${update.contact.notes}"`);
+          console.error(`  Contact notes: "${c.notes || 'MISSING'}"`);
+          fixedCount++;
+          return { ...c, notes: update.contact.notes }; // Force add notes
+        }
+      }
+      return c;
+    });
+    
+    if (fixedCount > 0) {
+      console.error(`🔧🔧🔧 SAFETY FIX: Fixed ${fixedCount} contacts that were missing notes!`);
+    }
+    
+    const finalFixedContacts = fixedCount > 0 ? fixedContacts : finalContacts;
+    const finalContactsWithNotes = finalFixedContacts.filter(c => c.notes && c.notes.trim());
+    if (fixedCount > 0) {
+      console.error(`📦 After safety fix: ${finalContactsWithNotes.length} contacts with notes`);
+    }
+    
+    setContacts(finalFixedContacts);
     
     // Immediately save to localStorage
     if (user && isDataLoaded) {
       const contactsKey = `contactChronicle_contacts_${user.id}`;
       try {
         // Safari compatibility: Verify data before saving
-        const contactsWithNotesBeforeSave = finalContacts.filter(c => c.notes && c.notes.trim());
+        const contactsWithNotesBeforeSave = finalFixedContacts.filter(c => c.notes && c.notes.trim());
         console.error(`📦 Before save: ${contactsWithNotesBeforeSave.length} contacts have notes`);
         
-        const jsonString = JSON.stringify(finalContacts);
+        const jsonString = JSON.stringify(finalFixedContacts);
         // Safari compatibility: Check JSON string for notes
         const notesCountInJSON = (jsonString.match(/"notes":\s*"[^"]+"/g) || []).length;
         console.error(`📦 JSON string contains ${notesCountInJSON} notes fields`);

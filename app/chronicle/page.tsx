@@ -600,6 +600,30 @@ export default function ChroniclePage() {
             `Click OK to execute batch update...`
           );
           
+          // CRITICAL: Before calling batch update, verify notes are in the objects
+          const finalVerification = contactsToUpdate.filter(u => {
+            const hasNotes = u.contact.notes && typeof u.contact.notes === 'string' && u.contact.notes.trim().length > 0;
+            if (!hasNotes) {
+              // Check if this contact should have notes from imported data
+              const importedMatch = importedContacts.find(ic => 
+                (ic.id === u.id) ||
+                (ic.emailAddress && u.contact.emailAddress && ic.emailAddress.toLowerCase() === u.contact.emailAddress.toLowerCase()) ||
+                (ic.firstName === u.contact.firstName && ic.lastName === u.contact.lastName)
+              );
+              if (importedMatch && importedMatch.notes && importedMatch.notes.trim()) {
+                console.error(`⚠️ Contact "${u.contact.firstName} ${u.contact.lastName}" should have notes but doesn't!`);
+                console.error(`  Imported notes: "${importedMatch.notes}"`);
+                console.error(`  contactToUpdate keys:`, Object.keys(u.contact));
+                // FORCE ADD IT
+                u.contact.notes = importedMatch.notes;
+                console.error(`  🔧 FORCE ADDED notes to contactToUpdate`);
+              }
+            }
+            return hasNotes;
+          });
+          
+          console.error(`📋 FINAL VERIFICATION: ${finalVerification.length} contacts have notes before batch update`);
+          
           updateMultipleContacts(contactsToUpdate);
           
           // Alert after batch update call
