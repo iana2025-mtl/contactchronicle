@@ -429,24 +429,80 @@ export default function MapPage() {
     }
   }, [user, dynamicCities]);
 
+  // Clean location name before geocoding
+  const cleanLocationName = useCallback((locationName: string): string => {
+    if (!locationName?.trim()) return '';
+    
+    let cleaned = locationName.trim();
+    
+    // Remove common prefixes and phrases
+    const removePatterns = [
+      /^(?:met\s+in|moved\s+to|lived\s+in|located\s+in|worked\s+in|born\s+in|grew\s+up\s+in|from|in|at|near|by)\s+/i,
+      /\s+(?:city|town|village|county)$/i,
+    ];
+    
+    for (const pattern of removePatterns) {
+      cleaned = cleaned.replace(pattern, '').trim();
+    }
+    
+    // Normalize whitespace
+    cleaned = cleaned.replace(/\s+/g, ' ').trim();
+    
+    return cleaned;
+  }, []);
+
   // Geocode city using Next.js API route (fixes CORS issue)
   const geocodeCity = useCallback(async (cityName: string): Promise<{ lat: number; lng: number; displayName: string } | null> => {
     if (!cityName?.trim()) return null;
 
-    // Check cache first
+    // Clean the city name first
+    const cleanedCityName = cleanLocationName(cityName);
+    if (!cleanedCityName) {
+      console.warn(`⚠️ City name became empty after cleaning: "${cityName}"`);
+      return null;
+    }
+
+    // Check cache first (with both original and cleaned name)
+    if (geocodingCacheRef.current.has(cleanedCityName)) {
+      return geocodingCacheRef.current.get(cleanedCityName) || null;
+    }
     if (geocodingCacheRef.current.has(cityName)) {
       return geocodingCacheRef.current.get(cityName) || null;
     }
 
     try {
-      console.log(`🌐 Geocoding city: "${cityName}"`);
-      const encodedCity = encodeURIComponent(cityName);
+      console.log(`🌐 Geocoding city: "${cityName}" → cleaned: "${cleanedCityName}"`);
+      const encodedCity = encodeURIComponent(cleanedCityName);
       const url = `/api/geocode?city=${encodedCity}`;
       
       const response = await fetch(url);
 
       if (!response.ok) {
-        console.error(`❌ Geocoding failed for "${cityName}": ${response.status}`);
+        // If 404, try with original name as fallback
+        if (response.status === 404 && cleanedCityName !== cityName) {
+          console.log(`⚠️ Geocoding failed for "${cleanedCityName}", trying original: "${cityName}"`);
+          const encodedOriginal = encodeURIComponent(cityName);
+          const fallbackUrl = `/api/geocode?city=${encodedOriginal}`;
+          const fallbackResponse = await fetch(fallbackUrl);
+          
+          if (fallbackResponse.ok) {
+            const fallbackData = await fallbackResponse.json();
+            if (fallbackData.lat && fallbackData.lng) {
+              const coords = { 
+                lat: fallbackData.lat, 
+                lng: fallbackData.lng, 
+                displayName: fallbackData.displayName || cityName 
+              };
+              geocodingCacheRef.current.set(cityName, coords);
+              geocodingCacheRef.current.set(cleanedCityName, coords);
+              saveDynamicCity(cleanedCityName, coords);
+              return coords;
+            }
+          }
+        }
+        
+        console.error(`❌ Geocoding failed for "${cleanedCityName}": ${response.status}`);
+        geocodingCacheRef.current.set(cleanedCityName, null);
         geocodingCacheRef.current.set(cityName, null);
         return null;
       }
@@ -454,7 +510,8 @@ export default function MapPage() {
       const data = await response.json();
       
       if (data.error) {
-        console.warn(`⚠️ Geocoding error for "${cityName}": ${data.error}`);
+        console.warn(`⚠️ Geocoding error for "${cleanedCityName}": ${data.error}`);
+        geocodingCacheRef.current.set(cleanedCityName, null);
         geocodingCacheRef.current.set(cityName, null);
         return null;
       }
@@ -463,28 +520,31 @@ export default function MapPage() {
         const coords = { 
           lat: data.lat, 
           lng: data.lng, 
-          displayName: data.displayName || cityName 
+          displayName: data.displayName || cleanedCityName 
         };
         
-        // Cache the result
+        // Cache both original and cleaned names
+        geocodingCacheRef.current.set(cleanedCityName, coords);
         geocodingCacheRef.current.set(cityName, coords);
         
-        // Save to dynamic cities
-        saveDynamicCity(cityName, coords);
+        // Save to dynamic cities with cleaned name
+        saveDynamicCity(cleanedCityName, coords);
         
         console.log(`✅ Geocoded "${cityName}" → ${coords.displayName} at [${coords.lat}, ${coords.lng}]`);
         return coords;
       } else {
-        console.warn(`⚠️ No geocoding results for "${cityName}"`);
+        console.warn(`⚠️ No geocoding results for "${cleanedCityName}"`);
+        geocodingCacheRef.current.set(cleanedCityName, null);
         geocodingCacheRef.current.set(cityName, null);
         return null;
       }
     } catch (error) {
-      console.error(`❌ Error geocoding "${cityName}":`, error);
+      console.error(`❌ Error geocoding "${cleanedCityName}":`, error);
+      geocodingCacheRef.current.set(cleanedCityName, null);
       geocodingCacheRef.current.set(cityName, null);
       return null;
     }
-  }, [saveDynamicCity]);
+  }, [saveDynamicCity, cleanLocationName]);
 
   // ============================================================================
   // UTILITY FUNCTIONS: Coordinate lookup and validation
