@@ -407,35 +407,102 @@ export default function ChroniclePage() {
           // Count contacts with notes in the batch
           const batchWithNotes = contactsToUpdate.filter(u => u.contact.notes && u.contact.notes.trim());
           
-          // ALERT: Show batch update status (can't be filtered)
-          alert(`🔄 BATCH UPDATE\nUpdating ${contactsToUpdate.length} contacts\n${batchWithNotes.length} contacts have notes`);
+          // ALERT: Show batch update status - use window.alert and show detailed info
+          const firstFewWithNotes = contactsToUpdate
+            .filter(u => u.contact.notes && u.contact.notes.trim())
+            .slice(0, 3)
+            .map(u => `${u.contact.firstName} ${u.contact.lastName}: "${u.contact.notes.substring(0, 30)}..."`)
+            .join('\n');
+          
+          window.alert(
+            `🔄 BATCH UPDATE\n` +
+            `Updating ${contactsToUpdate.length} contacts\n` +
+            `${batchWithNotes.length} contacts have notes\n\n` +
+            `First few with notes:\n${firstFewWithNotes || 'None found'}\n\n` +
+            `Click OK to execute batch update...`
+          );
+          
+          // CRITICAL: Verify EVERY contact object has notes if imported had notes
+          let verifiedCount = 0;
+          contactsToUpdate.forEach(({ id, contact }) => {
+            const importedMatch = importedContacts.find(ic => {
+              // Match by ID, email, or name
+              return (ic.id === id) ||
+                     (ic.emailAddress && contact.emailAddress && ic.emailAddress.toLowerCase() === contact.emailAddress.toLowerCase()) ||
+                     (ic.firstName === contact.firstName && ic.lastName === contact.lastName);
+            });
+            
+            if (importedMatch && importedMatch.notes && importedMatch.notes.trim()) {
+              // Imported has notes - verify contactToUpdate has it
+              if (!contact.notes || !contact.notes.trim()) {
+                console.error(`❌ VERIFICATION FAILED: ${contact.firstName} ${contact.lastName} should have notes but doesn't!`);
+                console.error(`  Imported notes: "${importedMatch.notes}"`);
+                console.error(`  contactToUpdate keys:`, Object.keys(contact));
+                // FORCE ADD IT
+                contact.notes = importedMatch.notes;
+                console.error(`  🔧 FORCE ADDED notes to contact object`);
+              } else {
+                verifiedCount++;
+              }
+            }
+          });
+          
+          console.log(`✅ Verified ${verifiedCount} contacts have notes matching imported data`);
           
           // Log first few contacts to verify notes are in the objects
           console.log(`\n🔄 Using batch update for ${contactsToUpdate.length} contacts`);
           console.log(`📋 Contacts with notes in batch: ${batchWithNotes.length}`);
-          console.log(`📋 First 3 contacts to update:`, contactsToUpdate.slice(0, 3).map(u => ({
-            id: u.id,
-            name: `${u.contact.firstName} ${u.contact.lastName}`,
-            hasNotes: 'notes' in u.contact,
-            notesPreview: u.contact.notes ? u.contact.notes.substring(0, 50) : 'none',
-            allKeys: Object.keys(u.contact)
-          })));
           
-          // Verify notes are actually in the objects before batch update
-          const missingNotes = contactsToUpdate.filter(u => {
-            const shouldHaveNotes = importedContacts.find(ic => 
-              ic.firstName === u.contact.firstName && 
-              ic.lastName === u.contact.lastName &&
-              ic.notes && ic.notes.trim()
+          // Sample a few contacts to show their structure
+          const sampleWithNotes = contactsToUpdate.filter(u => u.contact.notes && u.contact.notes.trim()).slice(0, 3);
+          if (sampleWithNotes.length > 0) {
+            console.log(`📋 Sample contacts WITH notes:`, sampleWithNotes.map(u => ({
+              id: u.id,
+              name: `${u.contact.firstName} ${u.contact.lastName}`,
+              notes: u.contact.notes.substring(0, 50),
+              hasNotesKey: 'notes' in u.contact,
+              allKeys: Object.keys(u.contact)
+            })));
+          } else {
+            console.error(`❌ NO CONTACTS WITH NOTES IN BATCH!`);
+          }
+          
+          // Also check a few that should have notes based on imported data
+          const shouldHaveNotes = contactsToUpdate.filter(u => {
+            const importedMatch = importedContacts.find(ic => 
+              (ic.id === u.id) ||
+              (ic.emailAddress && u.contact.emailAddress && ic.emailAddress.toLowerCase() === u.contact.emailAddress.toLowerCase()) ||
+              (ic.firstName === u.contact.firstName && ic.lastName === u.contact.lastName)
             );
-            return shouldHaveNotes && (!u.contact.notes || !u.contact.notes.trim());
+            return importedMatch && importedMatch.notes && importedMatch.notes.trim();
           });
           
+          console.log(`📋 Contacts that SHOULD have notes (based on imported data): ${shouldHaveNotes.length}`);
+          const missingNotes = shouldHaveNotes.filter(u => !u.contact.notes || !u.contact.notes.trim());
           if (missingNotes.length > 0) {
-            console.error(`❌❌❌ ERROR: ${missingNotes.length} contacts should have notes but don't!`);
-            missingNotes.forEach(u => {
-              console.error(`  Missing notes: ${u.contact.firstName} ${u.contact.lastName}`);
+            console.error(`❌❌❌ ${missingNotes.length} contacts SHOULD have notes but are missing them!`);
+            missingNotes.slice(0, 5).forEach(u => {
+              const importedMatch = importedContacts.find(ic => 
+                (ic.id === u.id) ||
+                (ic.emailAddress && u.contact.emailAddress && ic.emailAddress.toLowerCase() === u.contact.emailAddress.toLowerCase()) ||
+                (ic.firstName === u.contact.firstName && ic.lastName === u.contact.lastName)
+              );
+              console.error(`  - ${u.contact.firstName} ${u.contact.lastName}:`);
+              console.error(`    Imported notes: "${importedMatch?.notes}"`);
+              console.error(`    contactToUpdate has notes: ${!!u.contact.notes}`);
+              console.error(`    contactToUpdate keys:`, Object.keys(u.contact));
+              // LAST RESORT: Force add it directly to the object
+              u.contact.notes = importedMatch!.notes;
+              console.error(`    🔧🔧🔧 FORCE ADDED notes to contact object`);
             });
+          }
+          
+          // Final verification before calling batch update
+          const finalWithNotes = contactsToUpdate.filter(u => u.contact.notes && u.contact.notes.trim()).length;
+          console.log(`📋 FINAL COUNT: ${finalWithNotes} contacts have notes before batch update call`);
+          
+          if (finalWithNotes === 0 && importedWithNotes.length > 0) {
+            window.alert(`⚠️ WARNING: ${importedWithNotes.length} contacts in file have notes, but 0 in batch update objects!\nThis indicates a bug in the contact matching or notes assignment logic.`);
           }
           
           updateMultipleContacts(contactsToUpdate);
