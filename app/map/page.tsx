@@ -716,14 +716,9 @@ export default function MapPage() {
 
     const normalized = cityName.toLowerCase().trim();
 
-    // Filter out country names - don't geocode countries, only cities
-    if (countryNames.has(normalized)) {
-      console.log(`🚫 Skipping country name: "${cityName}"`);
-      return null;
-    }
-    
     // Check if the location name contains a country name (e.g., "Japan" in "Tokyo, Japan")
     // Extract just the city part if it's "City, Country" format
+    let cityNameToLookup = normalized;
     const parts = normalized.split(',').map(p => p.trim());
     if (parts.length > 1) {
       const lastPart = parts[parts.length - 1];
@@ -732,17 +727,26 @@ export default function MapPage() {
         const cityOnly = parts.slice(0, -1).join(',').trim();
         if (cityOnly) {
           console.log(`🔍 Extracted city from "City, Country": "${cityOnly}" from "${cityName}"`);
-          // Recursively call with city only
-          return getCityCoordinates(cityOnly);
+          cityNameToLookup = cityOnly;
+        } else {
+          // If only country remains, skip it
+          console.log(`🚫 Skipping country-only location: "${cityName}"`);
+          return null;
         }
-        // If only country remains, skip it
-        console.log(`🚫 Skipping country-only location: "${cityName}"`);
-        return null;
       }
     }
+    
+    // Filter out country names - don't geocode countries, only cities
+    if (countryNames.has(cityNameToLookup)) {
+      console.log(`🚫 Skipping country name: "${cityName}"`);
+      return null;
+    }
+    
+    // Use the cleaned city name for lookup
+    const normalizedLookup = cityNameToLookup;
 
     // Step 1: Exact match (highest priority)
-    if (allCityCoordinates[normalized]) {
+    if (allCityCoordinates[normalizedLookup]) {
       const coords = allCityCoordinates[normalized];
       // Validate coordinates
       if (coords.lat < -90 || coords.lat > 90 || coords.lng < -180 || coords.lng > 180) {
@@ -754,13 +758,13 @@ export default function MapPage() {
 
     // Step 2: Try with common separators and variations
     const variations = [
-      normalized,
-      normalized.replace(/\s*,\s*/, ', '),
-      normalized.replace(/\s+/, ' '),
+      normalizedLookup,
+      normalizedLookup.replace(/\s*,\s*/, ', '),
+      normalizedLookup.replace(/\s+/, ' '),
     ];
 
     for (const variant of variations) {
-      if (variant !== normalized && allCityCoordinates[variant]) {
+      if (variant !== normalizedLookup && allCityCoordinates[variant]) {
         const coords = allCityCoordinates[variant];
         if (coords.lat >= -90 && coords.lat <= 90 && coords.lng >= -180 && coords.lng <= 180) {
           return coords;
@@ -770,7 +774,7 @@ export default function MapPage() {
 
     // Step 3: Partial match - but only if one of the strings contains the other as a COMPLETE word
     // This prevents "York" from matching "New York" incorrectly
-    const normalizedWords = normalized.split(/\s+/);
+    const normalizedWords = normalizedLookup.split(/\s+/);
     for (const [key, coords] of Object.entries(allCityCoordinates)) {
       const keyWords = key.toLowerCase().split(/\s+/);
       
@@ -786,10 +790,10 @@ export default function MapPage() {
       
       // Only match if it's a meaningful match (not just a substring)
       if ((isCompleteMatch || isReverseMatch) && 
-          (normalized.length > 3 && key.length > 3) && // Both must be substantial
+          (normalizedLookup.length > 3 && key.length > 3) && // Both must be substantial
           coords.lat >= -90 && coords.lat <= 90 && coords.lng >= -180 && coords.lng <= 180) {
         // Prefer longer, more specific matches
-        if (key.length >= normalized.length * 0.8) {
+        if (key.length >= normalizedLookup.length * 0.8) {
           return coords;
         }
       }
@@ -798,7 +802,7 @@ export default function MapPage() {
     // Not found in database - trigger async geocoding in background
     const commonWords = new Set(['new', 'long', 'old', 'big', 'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'its', 'may', 'now', 'see', 'two', 'way', 'who', 'boy', 'did', 'let', 'put', 'say', 'she', 'too', 'use', 'lives', 'works', 'lived', 'worked', 'york', 'island', 'beach']);
     
-    if (normalized.length > 3 && !commonWords.has(normalized) && !normalized.includes(',')) {
+    if (normalizedLookup.length > 3 && !commonWords.has(normalizedLookup) && !normalizedLookup.includes(',')) {
       // Trigger geocoding in background (don't await - will update map when done)
       geocodeCity(cityName).then((geocoded) => {
         if (geocoded) {
@@ -807,9 +811,9 @@ export default function MapPage() {
         } else {
           // Track as missing if geocoding failed
           setMissingCities(prev => {
-            if (!prev.has(normalized)) {
+            if (!prev.has(normalizedLookup)) {
               console.warn(`⚠️ CITY NOT FOUND (geocoding failed): "${cityName}"`);
-              return new Set(prev).add(normalized);
+              return new Set(prev).add(normalizedLookup);
             }
             return prev;
           });
@@ -820,7 +824,7 @@ export default function MapPage() {
     }
 
     return null;
-  }, [allCityCoordinates, geocodeCity, getCityCoordinates]);
+  }, [allCityCoordinates, geocodeCity]);
 
   const validateCoordinates = useCallback((coords: { lat: number; lng: number }): boolean => {
     if (isNaN(coords.lat) || isNaN(coords.lng)) {
