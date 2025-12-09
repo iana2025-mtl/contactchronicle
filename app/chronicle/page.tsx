@@ -79,6 +79,12 @@ export default function ChroniclePage() {
         
         // CRITICAL: Check raw JSON structure for notes field
         console.log(`📥 PARSED: ${importedContacts.length} contacts`);
+        const contactsWithNotesKey = importedContacts.filter(c => 'notes' in c);
+        const contactsWithNotesValue = importedContacts.filter(c => c.notes && typeof c.notes === 'string' && c.notes.trim().length > 0);
+        
+        // ALERT: Show notes status (can't be filtered)
+        alert(`📥 FILE PARSED\nTotal: ${importedContacts.length}\nWith 'notes' key: ${contactsWithNotesKey.length}\nWith notes content: ${contactsWithNotesValue.length}`);
+        
         const firstContactWithNotes = importedContacts.find(c => c.notes && c.notes.trim());
         if (firstContactWithNotes) {
           console.log(`📥 FIRST CONTACT WITH NOTES IN FILE:`, {
@@ -86,6 +92,7 @@ export default function ChroniclePage() {
             notes: firstContactWithNotes.notes,
             fullContact: firstContactWithNotes
           });
+          console.log(`📥 FULL JSON:`, JSON.stringify(firstContactWithNotes, null, 2));
         } else {
           console.warn(`📥 WARNING: No contacts with notes found in parsed array!`);
           console.warn(`  Checking first 3 contacts:`, importedContacts.slice(0, 3).map(c => ({
@@ -94,6 +101,10 @@ export default function ChroniclePage() {
             notesValue: c.notes,
             allKeys: Object.keys(c)
           })));
+          // Show full structure of first contact
+          if (importedContacts.length > 0) {
+            console.log(`📥 FULL FIRST CONTACT JSON:`, JSON.stringify(importedContacts[0], null, 2));
+          }
         }
 
         // Count contacts with notes in imported file - check for notes field existence
