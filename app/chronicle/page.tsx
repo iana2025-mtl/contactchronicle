@@ -309,6 +309,18 @@ export default function ChroniclePage() {
             
             // ULTRA-SIMPLE APPROACH: Build contactToUpdate with ALL fields including notes
             // Copy everything from imported, fallback to existing for missing fields
+            // ALWAYS check for 'notes' key in imported using 'in' operator
+            const hasImportedNotesKey = 'notes' in imported;
+            const importedNotesValue = imported.notes;
+            
+            console.log(`    🔍 CHECKING NOTES FOR "${imported.firstName} ${imported.lastName}":`, {
+              hasNotesKey: hasImportedNotesKey,
+              notesValue: importedNotesValue,
+              notesType: typeof importedNotesValue,
+              notesLength: importedNotesValue?.length,
+              existingHasNotes: existing.notes ? true : false
+            });
+            
             const contactToUpdate: Partial<Contact> = {
               id: existing.id, // Always preserve existing ID
               firstName: imported.firstName || existing.firstName || '',
@@ -321,13 +333,13 @@ export default function ChroniclePage() {
               source: imported.source || existing.source || 'Uploaded',
             };
             
-            // CRITICAL: Handle notes field - ALWAYS check imported first
-            // Priority: imported.notes (if exists) > existing.notes (if exists) > undefined
-            if (imported.notes !== undefined && imported.notes !== null) {
+            // CRITICAL: Handle notes field - ALWAYS check imported first using 'in' operator
+            // Priority: imported.notes (if key exists) > existing.notes (if exists) > undefined
+            if (hasImportedNotesKey && importedNotesValue !== undefined && importedNotesValue !== null) {
               // Imported has notes field (even if empty string) - use it
-              contactToUpdate.notes = imported.notes;
-              if (imported.notes.trim().length > 0) {
-                console.log(`    ✅✅✅ SET notes from imported: "${imported.notes.substring(0, 60)}..."`);
+              contactToUpdate.notes = importedNotesValue;
+              if (importedNotesValue.trim().length > 0) {
+                console.log(`    ✅✅✅ SET notes from imported: "${importedNotesValue.substring(0, 60)}..."`);
               } else {
                 console.log(`    ℹ️ Imported notes is empty string`);
               }
@@ -339,6 +351,14 @@ export default function ChroniclePage() {
               // Neither has notes - leave undefined (don't set field)
               console.log(`    ⚠️ No notes in imported or existing`);
             }
+            
+            // VERIFY notes is in contactToUpdate before pushing
+            console.log(`    ✅ FINAL contactToUpdate check:`, {
+              hasNotesKey: 'notes' in contactToUpdate,
+              notesValue: contactToUpdate.notes || 'MISSING/UNDEFINED',
+              allKeys: Object.keys(contactToUpdate),
+              jsonHasNotes: JSON.stringify(contactToUpdate).includes('"notes"')
+            });
             
             // FINAL VERIFICATION: Log the object that will be pushed
             console.log(`    🔍 FINAL contactToUpdate object:`, {
