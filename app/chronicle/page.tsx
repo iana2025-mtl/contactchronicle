@@ -490,14 +490,40 @@ export default function ChroniclePage() {
         // Apply all updates at once using batch update function
         // This ensures all updates happen in a single state change and notes are preserved
         if (contactsToUpdate.length > 0) {
+          // Count contacts with notes in the batch
+          const batchWithNotes = contactsToUpdate.filter(u => u.contact.notes && u.contact.notes.trim());
+          
+          // ALERT: Show batch update status (can't be filtered)
+          alert(`🔄 BATCH UPDATE\nUpdating ${contactsToUpdate.length} contacts\n${batchWithNotes.length} contacts have notes`);
+          
           // Log first few contacts to verify notes are in the objects
           console.log(`\n🔄 Using batch update for ${contactsToUpdate.length} contacts`);
+          console.log(`📋 Contacts with notes in batch: ${batchWithNotes.length}`);
           console.log(`📋 First 3 contacts to update:`, contactsToUpdate.slice(0, 3).map(u => ({
             id: u.id,
             name: `${u.contact.firstName} ${u.contact.lastName}`,
             hasNotes: 'notes' in u.contact,
-            notesPreview: u.contact.notes ? u.contact.notes.substring(0, 50) : 'none'
+            notesPreview: u.contact.notes ? u.contact.notes.substring(0, 50) : 'none',
+            allKeys: Object.keys(u.contact)
           })));
+          
+          // Verify notes are actually in the objects before batch update
+          const missingNotes = contactsToUpdate.filter(u => {
+            const shouldHaveNotes = importedContacts.find(ic => 
+              ic.firstName === u.contact.firstName && 
+              ic.lastName === u.contact.lastName &&
+              ic.notes && ic.notes.trim()
+            );
+            return shouldHaveNotes && (!u.contact.notes || !u.contact.notes.trim());
+          });
+          
+          if (missingNotes.length > 0) {
+            console.error(`❌❌❌ ERROR: ${missingNotes.length} contacts should have notes but don't!`);
+            missingNotes.forEach(u => {
+              console.error(`  Missing notes: ${u.contact.firstName} ${u.contact.lastName}`);
+            });
+          }
+          
           updateMultipleContacts(contactsToUpdate);
         }
         
