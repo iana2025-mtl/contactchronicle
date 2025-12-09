@@ -169,12 +169,14 @@ export default function MapPage() {
   const [localContacts, setLocalContacts] = useState<Contact[]>([]);
   const [localTimelineEvents, setLocalTimelineEvents] = useState<TimelineEvent[]>([]);
   const [timelineSynced, setTimelineSynced] = useState(false);
+  const [dynamicCities, setDynamicCities] = useState<Record<string, { lat: number; lng: number; displayName: string }>>({});
   const mapInstanceRef = useRef<any>(null);
   const lastContactsHashRef = useRef<string>('');
   const lastTimelineHashRef = useRef<string>('');
   const lastTimelineWatchHashRef = useRef<string>('');
   const lastStorageCheckRef = useRef<string>('');
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const geocodingCacheRef = useRef<Map<string, { lat: number; lng: number; displayName: string } | null>>(new Map());
 
   // ============================================================================
   // REACTIVE DATA SYNC: Direct localStorage sync ensures real-time updates
@@ -379,16 +381,132 @@ export default function MapPage() {
   }, [localTimelineEvents, timelineEvents, timelineSynced]);
 
   // ============================================================================
+  // DYNAMIC CITIES: Load from localStorage
+  // ============================================================================
+  useEffect(() => {
+    if (!user) {
+      setDynamicCities({});
+      return;
+    }
+
+    const dynamicCitiesKey = `contactChronicle_dynamicCities_${user.id}`;
+    const stored = localStorage.getItem(dynamicCitiesKey);
+    
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setDynamicCities(parsed);
+        console.log(`📦 Loaded ${Object.keys(parsed).length} dynamic cities from localStorage`);
+      } catch (error) {
+        console.error('Error loading dynamic cities:', error);
+        setDynamicCities({});
+      }
+    }
+  }, [user]);
+
+  // Merge static and dynamic city databases
+  const allCityCoordinates = useMemo(() => {
+    return { ...cityCoordinates, ...dynamicCities };
+  }, [dynamicCities]);
+
+  // Save dynamic city to localStorage
+  const saveDynamicCity = useCallback((cityName: string, coords: { lat: number; lng: number; displayName: string }) => {
+    if (!user) return;
+
+    const normalized = cityName.toLowerCase().trim();
+    const updated = { ...dynamicCities, [normalized]: coords };
+    setDynamicCities(updated);
+
+    const dynamicCitiesKey = `contactChronicle_dynamicCities_${user.id}`;
+    try {
+      localStorage.setItem(dynamicCitiesKey, JSON.stringify(updated));
+      console.log(`💾 Saved new city "${cityName}" to dynamic database`);
+    } catch (error) {
+      console.error('Error saving dynamic city:', error);
+    }
+  }, [user, dynamicCities]);
+
+  // Geocode city using OpenStreetMap Nominatim API
+  const geocodeCity = useCallback(async (cityName: string): Promise<{ lat: number; lng: number; displayName: string } | null> => {
+    if (!cityName?.trim()) return null;
+
+    // Check cache first
+    if (geocodingCacheRef.current.has(cityName)) {
+      return geocodingCacheRef.current.get(cityName) || null;
+    }
+
+    try {
+      console.log(`🌐 Geocoding city: "${cityName}"`);
+      const encodedCity = encodeURIComponent(cityName);
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodedCity}&format=json&limit=1&addressdetails=1`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'ContactChronicle/1.0' // Required by Nominatim
+        }
+      });
+
+      if (!response.ok) {
+        console.error(`❌ Geocoding failed for "${cityName}": ${response.status}`);
+        geocodingCacheRef.current.set(cityName, null);
+        return null;
+      }
+
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        const result = data[0];
+        const lat = parseFloat(result.lat);
+        const lng = parseFloat(result.lon);
+        
+        if (isNaN(lat) || isNaN(lng)) {
+          console.error(`❌ Invalid coordinates from geocoding: "${cityName}"`);
+          geocodingCacheRef.current.set(cityName, null);
+          return null;
+        }
+
+        // Validate coordinates
+        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+          console.error(`❌ Coordinates out of range for "${cityName}": [${lat}, ${lng}]`);
+          geocodingCacheRef.current.set(cityName, null);
+          return null;
+        }
+
+        const displayName = result.display_name?.split(',')[0] || cityName;
+        const coords = { lat, lng, displayName };
+        
+        // Cache the result
+        geocodingCacheRef.current.set(cityName, coords);
+        
+        // Save to dynamic cities
+        saveDynamicCity(cityName, coords);
+        
+        console.log(`✅ Geocoded "${cityName}" → ${displayName} at [${lat}, ${lng}]`);
+        return coords;
+      } else {
+        console.warn(`⚠️ No geocoding results for "${cityName}"`);
+        geocodingCacheRef.current.set(cityName, null);
+        return null;
+      }
+    } catch (error) {
+      console.error(`❌ Error geocoding "${cityName}":`, error);
+      geocodingCacheRef.current.set(cityName, null);
+      return null;
+    }
+  }, [saveDynamicCity]);
+
+  // ============================================================================
   // UTILITY FUNCTIONS: Coordinate lookup and validation
   // ============================================================================
+  // Synchronous lookup - checks static and dynamic databases
   const getCityCoordinates = useCallback((cityName: string): { lat: number; lng: number; displayName: string } | null => {
     if (!cityName?.trim()) return null;
 
     const normalized = cityName.toLowerCase().trim();
 
-    // Exact match
-    if (cityCoordinates[normalized]) {
-      const coords = cityCoordinates[normalized];
+    // Check merged database (static + dynamic)
+    if (allCityCoordinates[normalized]) {
+      const coords = allCityCoordinates[normalized];
       // Validate coordinates
       if (coords.lat < -90 || coords.lat > 90 || coords.lng < -180 || coords.lng > 180) {
         console.error(`❌ Invalid coordinates for "${cityName}": [${coords.lat}, ${coords.lng}]`);
@@ -397,8 +515,8 @@ export default function MapPage() {
       return coords;
     }
 
-    // Partial match
-    for (const [key, coords] of Object.entries(cityCoordinates)) {
+    // Partial match in merged database
+    for (const [key, coords] of Object.entries(allCityCoordinates)) {
       if (normalized.includes(key) || key.includes(normalized)) {
         if (coords.lat >= -90 && coords.lat <= 90 && coords.lng >= -180 && coords.lng <= 180) {
           return coords;
@@ -406,22 +524,33 @@ export default function MapPage() {
       }
     }
 
-        // Track missing city (only if it looks like a real city name, not a common word)
-        // Only track if it's longer than 3 chars and doesn't match common words
-        const commonWords = new Set(['new', 'long', 'old', 'big', 'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'its', 'may', 'now', 'see', 'two', 'way', 'who', 'boy', 'did', 'let', 'put', 'say', 'she', 'too', 'use', 'lives', 'works', 'lived', 'worked', 'york', 'island', 'beach']);
-        
-        if (normalized.length > 3 && !commonWords.has(normalized) && !normalized.includes(',')) {
+    // Not found in database - trigger async geocoding in background
+    const commonWords = new Set(['new', 'long', 'old', 'big', 'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'its', 'may', 'now', 'see', 'two', 'way', 'who', 'boy', 'did', 'let', 'put', 'say', 'she', 'too', 'use', 'lives', 'works', 'lived', 'worked', 'york', 'island', 'beach']);
+    
+    if (normalized.length > 3 && !commonWords.has(normalized) && !normalized.includes(',')) {
+      // Trigger geocoding in background (don't await - will update map when done)
+      geocodeCity(cityName).then((geocoded) => {
+        if (geocoded) {
+          console.log(`✅ New city geocoded: "${cityName}" - map will update`);
+          // Force map recalculation after geocoding
+          setMapKey(prev => prev + 1);
+        } else {
+          // Track as missing if geocoding failed
           setMissingCities(prev => {
             if (!prev.has(normalized)) {
-              console.warn(`⚠️ CITY NOT IN DATABASE: "${cityName}"`);
+              console.warn(`⚠️ CITY NOT FOUND (geocoding failed): "${cityName}"`);
               return new Set(prev).add(normalized);
             }
             return prev;
           });
         }
+      }).catch((error) => {
+        console.error(`❌ Error geocoding "${cityName}":`, error);
+      });
+    }
 
     return null;
-  }, []);
+  }, [allCityCoordinates, geocodeCity]);
 
   const validateCoordinates = useCallback((coords: { lat: number; lng: number }): boolean => {
     if (isNaN(coords.lat) || isNaN(coords.lng)) {
@@ -471,8 +600,8 @@ export default function MapPage() {
     console.log(`  🔍 Extracting locations from "${contact.firstName} ${contact.lastName}"`);
     console.log(`     Notes: "${noteText.substring(0, 200)}${noteText.length > 200 ? '...' : ''}"`);
 
-    // STEP 1: Direct city name matching - check ALL city keys
-    for (const [cityKey, coords] of Object.entries(cityCoordinates)) {
+    // STEP 1: Direct city name matching - check ALL city keys (static + dynamic)
+    for (const [cityKey, coords] of Object.entries(allCityCoordinates)) {
       const cityKeyLower = cityKey.toLowerCase();
       
       // Skip very short keys
@@ -621,9 +750,9 @@ export default function MapPage() {
               });
               
               if (!alreadyFound) {
-                // Find the best matching key from database
-                const bestKey = Object.keys(cityCoordinates).find(key => {
-                  const keyCoords = cityCoordinates[key];
+                // Find the best matching key from merged database (static + dynamic)
+                const bestKey = Object.keys(allCityCoordinates).find(key => {
+                  const keyCoords = allCityCoordinates[key];
                   return Math.abs(keyCoords.lat - coords.lat) < 0.001 &&
                          Math.abs(keyCoords.lng - coords.lng) < 0.001;
                 }) || variant;
@@ -660,7 +789,7 @@ export default function MapPage() {
     }
 
     return uniqueLocations;
-  }, [getCityCoordinates]);
+  }, [getCityCoordinates, allCityCoordinates]);
 
   const parseDate = useCallback((dateStr: string): Date | null => {
     if (!dateStr) return null;
@@ -778,7 +907,7 @@ export default function MapPage() {
     console.log('🗺️ ===========================================');
 
     return markersArray;
-  }, [activeContacts, activeTimelineEvents, extractLocationFromTimeline, extractLocationsFromNotes, getCityCoordinates, validateCoordinates, parseDate]);
+  }, [activeContacts, activeTimelineEvents, extractLocationFromTimeline, extractLocationsFromNotes, getCityCoordinates, validateCoordinates, parseDate, allCityCoordinates]);
 
   // ============================================================================
   // MAP CALCULATIONS: Center and bounds
