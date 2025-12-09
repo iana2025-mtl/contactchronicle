@@ -59,11 +59,12 @@ export default function ChroniclePage() {
     alert(`Exported ${contacts.length} contacts to JSON file!\n${notesCount} contact${notesCount !== 1 ? 's have' : ' has'} notes included.`);
   };
 
-  // SIMPLIFIED Import contacts from JSON file - DIAGNOSTIC VERSION
-  // VERSION: 2.0 - CACHE BUSTED
+  // DIRECT IMPORT - BYPASSES ALL UPDATE LOGIC AND WRITES DIRECTLY TO LOCALSTORAGE
+  // VERSION: 3.0 - DIRECT WRITE
   const handleImportContacts = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    // CRITICAL ALERT - confirm function is called - VERSION 2.0
-    alert('🚨🚨🚨 NEW IMPORT FUNCTION V2.0 CALLED 🚨🚨🚨\n\nIf you see this alert, the new code is loaded!\n\nVersion: 2.0 (Cache Bust)\n\nClick OK to continue...');
+    // CRITICAL ALERT - confirm function is called - VERSION 3.0
+    const userConfirmed = confirm('🚨🚨🚨 NEW IMPORT FUNCTION V3.0 CALLED 🚨🚨🚨\n\nDIRECT WRITE METHOD\n\nIf you see this, the new code is loaded!\n\nClick OK to continue...');
+    if (!userConfirmed) return;
     
     const file = event.target.files?.[0];
     if (!file) {
@@ -100,11 +101,33 @@ export default function ChroniclePage() {
         `First contact with notes: ${importedWithNotes[0] ? `${importedWithNotes[0].firstName} ${importedWithNotes[0].lastName}: "${importedWithNotes[0].notes}"` : 'None'}\n\n` +
         `Click OK to continue import...`
       );
+      
+      // GET CURRENT CONTACTS FROM LOCALSTORAGE DIRECTLY
+      const user = JSON.parse(localStorage.getItem('contactChronicle_user') || '{}');
+      if (!user || !user.id) {
+        alert('❌ Error: User not logged in!');
+        return;
+      }
+      
+      const contactsKey = `contactChronicle_contacts_${user.id}`;
+      const currentContactsJson = localStorage.getItem(contactsKey);
+      const currentContacts: Contact[] = currentContactsJson ? JSON.parse(currentContactsJson) : [];
+      
+      alert(
+        `📋 CURRENT STATE\n` +
+        `Existing contacts: ${currentContacts.length}\n` +
+        `Existing with notes: ${currentContacts.filter(c => c.notes && c.notes.trim()).length}\n\n` +
+        `Click OK to merge...`
+      );
 
-      // SIMPLIFIED MATCHING: Build update array directly
-      const updates: Array<{ id: string; contact: Partial<Contact> }> = [];
-      const newContacts: Contact[] = [];
+      // DIRECT MERGE: Build final contacts array directly, matching by ID/email/name
+      const mergedContacts: Contact[] = [];
+      const processedIds = new Set<string>();
+      
+      let matchedCount = 0;
+      let notesTransferred = 0;
 
+      // First, process all imported contacts
       for (const imported of importedContacts) {
         // Skip placeholder contacts
         if (imported.firstName === 'First Name' && imported.lastName === 'Last Name') {
@@ -113,93 +136,65 @@ export default function ChroniclePage() {
 
         // Find existing contact by ID, email, or name
         let existing: Contact | undefined;
-        let matchMethod = 'none';
         
         // Try ID first
         if (imported.id) {
-          existing = contacts.find(c => c.id === imported.id);
-          if (existing) matchMethod = 'ID';
+          existing = currentContacts.find(c => c.id === imported.id);
         }
         
         // Try email if ID didn't match
         if (!existing && imported.emailAddress && imported.emailAddress.trim()) {
-          existing = contacts.find(c => 
+          existing = currentContacts.find(c => 
             c.emailAddress && 
             c.emailAddress.toLowerCase().trim() === imported.emailAddress.toLowerCase().trim()
           );
-          if (existing) matchMethod = 'EMAIL';
         }
         
         // Try name if email didn't match
         if (!existing) {
           const importedNameKey = `${imported.firstName?.toLowerCase().trim()}_${imported.lastName?.toLowerCase().trim()}`;
-          existing = contacts.find(c => {
+          existing = currentContacts.find(c => {
             const existingNameKey = `${c.firstName?.toLowerCase().trim()}_${c.lastName?.toLowerCase().trim()}`;
             return existingNameKey === importedNameKey && existingNameKey !== 'first name_last name' && existingNameKey !== '_';
           });
-          if (existing) matchMethod = 'NAME';
-        }
-
-        // Log matching for contacts with notes
-        if (imported.notes && imported.notes.trim()) {
-          console.error(`🔍 MATCHING: "${imported.firstName} ${imported.lastName}" (has notes: "${imported.notes.substring(0, 40)}...")`);
-          console.error(`   Match found: ${!!existing}, method: ${matchMethod}`);
-          if (existing) {
-            console.error(`   Existing ID: ${existing.id}, has notes: ${!!existing.notes}`);
-          }
         }
 
         if (existing) {
-          // Build update object - START WITH ALL FIELDS FROM IMPORTED (includes notes if present)
-          const update: Partial<Contact> = {
-            // Spread imported first - this includes notes if it exists in imported
+          // Merge: Use imported notes if present, otherwise keep existing
+          const merged: Contact = {
+            ...existing,
             ...imported,
-            // Then override with existing values where imported is empty/undefined
+            id: existing.id, // Always keep existing ID
+            notes: ('notes' in imported && imported.notes !== undefined) 
+              ? imported.notes 
+              : (existing.notes || ''), // Use imported notes, or keep existing, or empty
             firstName: imported.firstName || existing.firstName || '',
             lastName: imported.lastName || existing.lastName || '',
-            emailAddress: imported.emailAddress || existing.emailAddress || '',
-            phoneNumber: imported.phoneNumber || existing.phoneNumber || '',
-            linkedInProfile: imported.linkedInProfile || existing.linkedInProfile || '',
-            dateAdded: imported.dateAdded || existing.dateAdded || '',
-            dateEdited: imported.dateEdited || existing.dateEdited || '',
-            source: imported.source || existing.source || 'Uploaded',
           };
           
-          // CRITICAL: Explicitly handle notes field
-          // If imported has notes field (even if empty string), use it
-          // Otherwise, preserve existing notes
-          if ('notes' in imported) {
-            update.notes = imported.notes; // Use imported notes (even if empty string)
-          } else if (existing.notes) {
-            update.notes = existing.notes; // Preserve existing notes if imported has no notes field
-          }
+          mergedContacts.push(merged);
+          processedIds.add(existing.id);
+          matchedCount++;
           
-          // Remove id from update (we use existing.id, not imported.id)
-          delete (update as any).id;
-
-          // Log if imported had notes
           if (imported.notes && imported.notes.trim()) {
-            console.error(`✅ MATCH FOUND: "${existing.firstName} ${existing.lastName}" - Imported has notes: "${imported.notes.substring(0, 50)}..."`);
-            console.error(`   Update object has notes: ${!!update.notes}, value: "${update.notes?.substring(0, 50)}..."`);
-            console.error(`   Update object keys:`, Object.keys(update));
+            notesTransferred++;
+            console.error(`✅ MERGED: "${existing.firstName} ${existing.lastName}" - Notes: "${imported.notes.substring(0, 50)}..."`);
           }
-
-          updates.push({ id: existing.id, contact: update });
         } else {
-          // New contact - include all fields including notes
+          // New contact - add as-is with all fields including notes
           const newContact: Contact = {
+            ...imported,
             id: imported.id || `contact-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            firstName: imported.firstName || '',
-            lastName: imported.lastName || '',
-            emailAddress: imported.emailAddress || '',
-            phoneNumber: imported.phoneNumber || '',
-            linkedInProfile: imported.linkedInProfile || '',
-            dateAdded: imported.dateAdded || '',
-            dateEdited: imported.dateEdited || '',
-            source: imported.source || 'Uploaded',
-            notes: imported.notes || '', // Explicitly include notes (may be empty string)
+            notes: imported.notes || '',
           };
-          newContacts.push(newContact);
+          mergedContacts.push(newContact);
+        }
+      }
+      
+      // Add any existing contacts that weren't matched
+      for (const existing of currentContacts) {
+        if (!processedIds.has(existing.id)) {
+          mergedContacts.push(existing);
         }
       }
 
