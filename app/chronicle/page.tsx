@@ -17,7 +17,7 @@ const Tooltip = dynamic(() => import('recharts').then((mod) => mod.Tooltip), { s
 const ResponsiveContainer = dynamic(() => import('recharts').then((mod) => mod.ResponsiveContainer), { ssr: false });
 
 export default function ChroniclePage() {
-  const { contacts, updateContact, addContacts } = useApp();
+  const { contacts, updateContact, addContacts, updateMultipleContacts } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSource, setSelectedSource] = useState<string>('all');
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
@@ -438,14 +438,16 @@ export default function ChroniclePage() {
         const finalContactsWithNotes = finalContacts.filter(c => c.notes && c.notes.trim());
         console.log(`  ✅ Contacts with notes after batch update: ${finalContactsWithNotes.length}`);
         
-        // Apply all updates at once by updating each contact then adding new ones
-        // This ensures all updates are batched together
-        contactsToUpdate.forEach(({ id, contact }) => {
-          updateContact(id, contact);
-        });
+        // Apply all updates at once using batch update function
+        // This ensures all updates happen in a single state change and notes are preserved
+        if (contactsToUpdate.length > 0) {
+          console.log(`\n🔄 Using batch update for ${contactsToUpdate.length} contacts`);
+          updateMultipleContacts(contactsToUpdate);
+        }
         
         // Add new contacts
         if (contactsToAdd.length > 0) {
+          console.log(`\n🔄 Adding ${contactsToAdd.length} new contacts`);
           addContacts(contactsToAdd);
         }
         

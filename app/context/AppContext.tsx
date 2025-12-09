@@ -32,6 +32,7 @@ interface AppContextType {
   deleteTimelineEvent: (id: string) => void;
   addContacts: (newContacts: Contact[]) => void;
   updateContact: (id: string, contact: Partial<Contact>) => void;
+  updateMultipleContacts: (updates: Array<{ id: string; contact: Partial<Contact> }>) => void;
   deleteContact: (id: string) => void;
   initializeTimeline: () => void;
 }
@@ -304,6 +305,79 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateMultipleContacts = (updates: Array<{ id: string; contact: Partial<Contact> }>) => {
+    console.log(`📦 BATCH UPDATE: Updating ${updates.length} contacts`);
+    
+    // Create update map for faster lookup
+    const updateMap = new Map<string, Partial<Contact>>();
+    updates.forEach(({ id, contact }) => {
+      console.log(`  - Will update ${id}:`, {
+        hasNotes: !!contact.notes,
+        notesPreview: contact.notes ? contact.notes.substring(0, 50) : 'none',
+        allFields: Object.keys(contact)
+      });
+      updateMap.set(id, contact);
+    });
+    
+    // Apply all updates in a single state change
+    const updatedContacts = contacts.map(c => {
+      const update = updateMap.get(c.id);
+      if (update) {
+        // Merge update, explicitly preserving notes
+        const merged: Contact = {
+          ...c,
+          ...update,
+          // CRITICAL: Explicitly handle notes - use update.notes if defined, otherwise keep existing
+          notes: update.notes !== undefined ? update.notes : c.notes,
+          id: c.id // Always preserve original ID
+        };
+        
+        if (merged.notes && merged.notes.trim()) {
+          console.log(`  ✅ Merged contact ${c.id} HAS notes: "${merged.notes.substring(0, 50)}..."`);
+        } else {
+          console.log(`  ⚠️ Merged contact ${c.id} has no notes`);
+        }
+        
+        return merged;
+      }
+      return c;
+    });
+    
+    // Add any new contacts from updates (shouldn't happen, but handle it)
+    const newContacts: Contact[] = [];
+    updates.forEach(({ id, contact }) => {
+      if (!contacts.find(c => c.id === id)) {
+        newContacts.push({
+          ...contact,
+          id,
+          firstName: contact.firstName || '',
+          lastName: contact.lastName || '',
+        } as Contact);
+      }
+    });
+    
+    const finalContacts = [...updatedContacts, ...newContacts];
+    
+    console.log(`📦 BATCH UPDATE complete: ${finalContacts.length} total contacts`);
+    const contactsWithNotes = finalContacts.filter(c => c.notes && c.notes.trim());
+    console.log(`📦 Contacts with notes after batch: ${contactsWithNotes.length}`);
+    
+    setContacts(finalContacts);
+    
+    // Immediately save to localStorage
+    if (user && isDataLoaded) {
+      const contactsKey = `contactChronicle_contacts_${user.id}`;
+      try {
+        localStorage.setItem(contactsKey, JSON.stringify(finalContacts));
+        console.log(`📦 Saved batch update to localStorage`);
+        const savedWithNotes = finalContacts.filter(c => c.notes && c.notes.trim());
+        console.log(`📦 Verified: ${savedWithNotes.length} contacts with notes saved`);
+      } catch (error) {
+        console.error('Error saving batch update:', error);
+      }
+    }
+  };
+
   const deleteContact = (id: string) => {
     const updatedContacts = contacts.filter(c => c.id !== id);
     setContacts(updatedContacts);
@@ -333,6 +407,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         deleteTimelineEvent,
         addContacts,
         updateContact,
+        updateMultipleContacts,
         deleteContact,
         initializeTimeline,
       }}
