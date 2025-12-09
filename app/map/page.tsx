@@ -908,9 +908,9 @@ export default function MapPage() {
               <div className="bg-white rounded-lg shadow-sm border border-purple-200 overflow-hidden mb-4 sm:mb-6">
                 <div className="w-full h-[400px] sm:h-[500px] lg:h-[600px] relative min-h-[400px] z-10">
                   <MapContainer
-                    key={`map-${mapKey}-${locationMarkers.length}`}
+                    key={`map-${mapKey}`}
                     center={[mapCenter.lat, mapCenter.lng]}
-                    zoom={locationMarkers.length === 1 ? 10 : 2}
+                    zoom={locationMarkers.length === 1 ? 10 : locationMarkers.length <= 5 ? 3 : 2}
                     minZoom={2}
                     maxZoom={18}
                     scrollWheelZoom={true}
@@ -920,9 +920,33 @@ export default function MapPage() {
                     zoomControl={true}
                     style={{ height: '100%', width: '100%', zIndex: 1 }}
                     className="z-10"
-                    whenReady={(mapEvent) => {
+                    whenReady={(mapEvent: any) => {
+                      const map = mapEvent.target;
+                      mapInstanceRef.current = map;
                       setMapReady(true);
                       console.log('🗺️ Map container ready');
+                      console.log(`   Initial center: [${map.getCenter().lat}, ${map.getCenter().lng}]`);
+                      console.log(`   Initial zoom: ${map.getZoom()}`);
+                      
+                      // Force fit bounds immediately when map is ready
+                      if (mapBounds && locationMarkers.length > 0) {
+                        setTimeout(() => {
+                          try {
+                            const L = require('leaflet');
+                            const leafletBounds = L.latLngBounds(mapBounds[0], mapBounds[1]);
+                            const isWorldwide = Math.abs(mapBounds[1][1] - mapBounds[0][1]) > 50;
+                            map.fitBounds(leafletBounds, {
+                              padding: isWorldwide ? [100, 100] : [50, 50],
+                              maxZoom: isWorldwide ? 10 : 15,
+                              animate: false // No animation for initial fit
+                            });
+                            console.log('🗺️ Map fitted to bounds in whenReady callback');
+                            console.log(`   Final zoom: ${map.getZoom()}, center: [${map.getCenter().lat}, ${map.getCenter().lng}]`);
+                          } catch (error) {
+                            console.error('❌ Error in whenReady fitBounds:', error);
+                          }
+                        }, 300);
+                      }
                     }}
                   >
                     <TileLayer
@@ -938,11 +962,12 @@ export default function MapPage() {
 
                       const position: [number, number] = [marker.coordinates.lat, marker.coordinates.lng];
                       
-                      console.log(`📍 Rendering marker [${index + 1}/${locationMarkers.length}]: ${marker.displayName} at [${position[0]}, ${position[1]}]`);
+                      // Create a stable key that doesn't change unless marker data actually changes
+                      const markerKey = `${marker.id}-${marker.source}-${marker.coordinates.lat.toFixed(4)}-${marker.coordinates.lng.toFixed(4)}`;
 
                       return (
                         <Marker
-                          key={`${marker.id}-${marker.source}-${position[0]}-${position[1]}-${mapKey}`}
+                          key={markerKey}
                           position={position}
                           eventHandlers={{
                             click: () => {
@@ -950,7 +975,10 @@ export default function MapPage() {
                               setSelectedLocation(marker);
                             },
                             add: () => {
-                              console.log(`✅ Marker rendered: ${marker.displayName}`);
+                              console.log(`✅ Marker ADDED to map: ${marker.displayName} at [${position[0]}, ${position[1]}]`);
+                            },
+                            remove: () => {
+                              console.log(`🗑️ Marker REMOVED from map: ${marker.displayName}`);
                             },
                           }}
                         >
