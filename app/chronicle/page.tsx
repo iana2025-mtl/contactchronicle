@@ -456,6 +456,45 @@ export default function ChroniclePage() {
         const totalAdded = contactsToAdd.length;
         const totalWithNotes = notesUpdatedCount + notesAddedCount;
 
+        // CRITICAL: Verify notes were actually saved by checking localStorage directly
+        setTimeout(() => {
+          try {
+            const userJson = localStorage.getItem('contactChronicle_user');
+            if (userJson) {
+              const user = JSON.parse(userJson);
+              const contactsKey = `contactChronicle_contacts_${user.id}`;
+              const savedContactsJson = localStorage.getItem(contactsKey);
+              if (savedContactsJson) {
+                const savedContacts: Contact[] = JSON.parse(savedContactsJson);
+                const savedWithNotes = savedContacts.filter(c => c.notes && c.notes.trim());
+                console.log(`🔍 FINAL VERIFICATION:`, {
+                  totalSaved: savedContacts.length,
+                  withNotes: savedWithNotes.length,
+                  sampleWithNotes: savedWithNotes.slice(0, 3).map(c => ({
+                    name: `${c.firstName} ${c.lastName}`,
+                    notes: c.notes?.substring(0, 50)
+                  }))
+                });
+                
+                // ALERT with final verification (can't be filtered)
+                alert(
+                  `Import complete!\n` +
+                  `- Updated: ${totalUpdated} (${notesUpdatedCount} with notes)\n` +
+                  `- Added: ${totalAdded} (${notesAddedCount} with notes)\n` +
+                  `- Total in file: ${importedContacts.length}\n` +
+                  `- Notes in batch: ${totalWithNotes}\n` +
+                  `\n🔍 FINAL VERIFICATION:\n` +
+                  `- Contacts in localStorage: ${savedContacts.length}\n` +
+                  `- Contacts with notes in localStorage: ${savedWithNotes.length}\n` +
+                  `${savedWithNotes.length === 0 ? '\n❌ ERROR: Notes were NOT saved!' : '\n✅ Notes were saved successfully!'}`
+                );
+              }
+            }
+          } catch (error) {
+            console.error('Error in final verification:', error);
+          }
+        }, 1000);
+
         alert(
           `Import complete!\n` +
           `- Updated: ${totalUpdated} existing contact(s) (${notesUpdatedCount} with notes)\n` +
