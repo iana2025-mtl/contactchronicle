@@ -801,8 +801,12 @@ export default function MapPage() {
       const coords = getCityCoordinates(loc);
       if (coords) {
         const coordKey = `${coords.lat.toFixed(4)}_${coords.lng.toFixed(4)}`;
-        if (!seenCoords.has(coordKey)) {
-          seenCoords.add(coordKey);
+        // Use same precision as marker deduplication (0.01 degree ≈ 1km)
+        const roundedLat = Math.round(coords.lat * 100) / 100;
+        const roundedLng = Math.round(coords.lng * 100) / 100;
+        const coordKeyRounded = `${roundedLat.toFixed(2)}_${roundedLng.toFixed(2)}`;
+        if (!seenCoordsPattern.has(coordKeyRounded)) {
+          seenCoordsPattern.add(coordKeyRounded);
           uniqueLocations.push(loc);
         }
       }
@@ -1373,14 +1377,6 @@ export default function MapPage() {
                         <Marker
                           key={markerKey}
                           position={position}
-                          icon={L.icon({
-                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-purple.png',
-                            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                            iconSize: [25, 41],
-                            iconAnchor: [12, 41],
-                            popupAnchor: [1, -34],
-                            shadowSize: [41, 41]
-                          })}
                           eventHandlers={{
                             click: () => {
                               console.log(`📍 Marker clicked: ${marker.displayName}`);
