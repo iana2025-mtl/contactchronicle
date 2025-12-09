@@ -513,9 +513,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     });
     
+    // Set contacts state
     setContacts(finalFixedContacts);
     
-    // Immediately save to localStorage - use a fresh check of notes after all fixes
+    // Immediately save to localStorage BEFORE React re-renders and auto-save runs
     if (user && isDataLoaded) {
       const contactsKey = `contactChronicle_contacts_${user.id}`;
       try {
@@ -526,7 +527,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // Sample a few contacts with notes to verify
         if (contactsWithNotesBeforeSave.length > 0) {
           console.error(`📦 Sample contacts with notes before save:`);
-          contactsWithNotesBeforeSave.slice(0, 3).forEach(c => {
+          contactsWithNotesBeforeSave.slice(0, 5).forEach(c => {
             console.error(`   - ${c.firstName} ${c.lastName}: "${c.notes?.substring(0, 50)}..."`);
           });
         }
@@ -536,10 +537,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const notesCountInJSON = (jsonString.match(/"notes":\s*"[^"]+"/g) || []).length;
         console.error(`📦 JSON string contains ${notesCountInJSON} notes fields with content`);
         
+        // SAVE IMMEDIATELY - this is the source of truth
         localStorage.setItem(contactsKey, jsonString);
         console.error(`📦 ✅ Saved batch update to localStorage`);
         
-        // IMMEDIATELY verify what was saved
+        // IMMEDIATELY verify what was saved (read back from localStorage)
         const savedJson = localStorage.getItem(contactsKey);
         if (savedJson) {
           const savedContacts: Contact[] = JSON.parse(savedJson);
@@ -551,6 +553,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
             console.error(`   Before save: ${contactsWithNotesBeforeSave.length}`);
             console.error(`   After save: ${savedWithNotes.length}`);
             console.error(`   Difference: ${contactsWithNotesBeforeSave.length - savedWithNotes.length} notes were LOST!`);
+            
+            // EMERGENCY: If notes were lost, try saving again with explicit notes preservation
+            console.error(`🔧 EMERGENCY: Attempting to re-save with explicit notes preservation...`);
+            const emergencyFixed = savedContacts.map(sc => {
+              const update = updates.find(u => u.id === sc.id);
+              if (update && update.contact.notes && update.contact.notes.trim() && (!sc.notes || !sc.notes.trim())) {
+                sc.notes = update.contact.notes;
+              }
+              return sc;
+            });
+            const emergencyFixedWithNotes = emergencyFixed.filter(c => c.notes && c.notes.trim());
+            if (emergencyFixedWithNotes.length > savedWithNotes.length) {
+              localStorage.setItem(contactsKey, JSON.stringify(emergencyFixed));
+              console.error(`🔧 EMERGENCY FIX: Re-saved with ${emergencyFixedWithNotes.length} contacts with notes`);
+            }
           } else {
             console.error(`✅✅✅ SUCCESS: All notes were saved correctly!`);
           }
@@ -560,6 +577,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       
       // Clear flag after a delay to allow auto-save to work again
+      setTimeout(() => {
+        batchUpdateInProgressRef.current = false;
+      }, 500);
+    } else {
+      // If user not loaded, clear flag immediately
       setTimeout(() => {
         batchUpdateInProgressRef.current = false;
       }, 100);
