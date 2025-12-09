@@ -198,124 +198,41 @@ export default function ChroniclePage() {
         }
       }
 
-      // Count updates with notes
-      const updatesWithNotes = updates.filter(u => 
-        u.contact.notes && typeof u.contact.notes === 'string' && u.contact.notes.trim().length > 0
+      // Count contacts with notes in merged array
+      const mergedWithNotes = mergedContacts.filter(c => 
+        c.notes && typeof c.notes === 'string' && c.notes.trim().length > 0
       );
 
-      // CRITICAL: Show detailed breakdown
-      const sampleUpdatesWithNotes = updates.filter(u => u.contact.notes && u.contact.notes.trim()).slice(0, 3);
-      const sampleText = sampleUpdatesWithNotes.map(u => 
-        `${u.contact.firstName} ${u.contact.lastName}: "${u.contact.notes?.substring(0, 30)}..."`
-      ).join('\n');
+      alert(
+        `🔄 MERGE COMPLETE\n` +
+        `- Total contacts: ${mergedContacts.length}\n` +
+        `- Matched: ${matchedCount}\n` +
+        `- Notes transferred: ${notesTransferred}\n` +
+        `- Contacts with notes: ${mergedWithNotes.length}\n\n` +
+        `${mergedWithNotes.length > 0 ? `Sample with notes:\n${mergedWithNotes.slice(0, 3).map(c => `${c.firstName} ${c.lastName}: "${c.notes?.substring(0, 30)}..."`).join('\n')}` : '⚠️ WARNING: NO NOTES!'}\n\n` +
+        `Click OK to save directly to localStorage...`
+      );
+
+      // WRITE DIRECTLY TO LOCALSTORAGE - BYPASS ALL UPDATE LOGIC
+      const jsonString = JSON.stringify(mergedContacts);
+      localStorage.setItem(contactsKey, jsonString);
+      
+      // Verify what was written
+      const savedJson = localStorage.getItem(contactsKey);
+      const savedContacts: Contact[] = savedJson ? JSON.parse(savedJson) : [];
+      const savedWithNotes = savedContacts.filter(c => c.notes && c.notes.trim());
       
       alert(
-        `🔄 IMPORT READY\n` +
-        `- Updates: ${updates.length} (${updatesWithNotes.length} with notes)\n` +
-        `- New contacts: ${newContacts.length}\n\n` +
-        `${updatesWithNotes.length > 0 ? `Sample updates with notes:\n${sampleText}\n\n` : '⚠️ WARNING: NO UPDATES HAVE NOTES!\n\n'}` +
-        `Click OK to apply changes...`
+        `✅ DIRECT WRITE COMPLETE\n\n` +
+        `Saved to localStorage:\n` +
+        `- Total contacts: ${savedContacts.length}\n` +
+        `- Contacts with notes: ${savedWithNotes.length}\n\n` +
+        `${savedWithNotes.length > 0 ? `Sample:\n${savedWithNotes.slice(0, 3).map(c => `${c.firstName} ${c.lastName}: "${c.notes?.substring(0, 30)}..."`).join('\n')}` : '❌ NO NOTES SAVED!'}\n\n` +
+        `Now reloading page to refresh state...`
       );
       
-      // CRITICAL: Verify notes are actually in update objects
-      if (updatesWithNotes.length === 0 && importedWithNotes.length > 0) {
-        console.error(`❌❌❌ CRITICAL: ${importedWithNotes.length} contacts in file have notes, but ${updatesWithNotes.length} updates have notes!`);
-        console.error(`This means notes were lost during the matching/update object creation.`);
-        console.error(`Sample imported contacts with notes:`, importedWithNotes.slice(0, 3).map(c => ({
-          name: `${c.firstName} ${c.lastName}`,
-          notes: c.notes,
-          id: c.id
-        })));
-        
-        alert(
-          `⚠️ CRITICAL ISSUE DETECTED!\n\n` +
-          `File has ${importedWithNotes.length} contacts with notes\n` +
-          `But only ${updatesWithNotes.length} updates have notes\n\n` +
-          `This means notes were lost during processing!\n` +
-          `Check console for details.\n\n` +
-          `Continuing anyway...`
-        );
-      }
-
-      // Apply updates using batch update
-      if (updates.length > 0) {
-        // VERIFY notes are in the update objects before calling batch update
-        const verifiedUpdates = updates.map(({ id, contact }) => {
-          // Find the original imported contact that matches this update
-          const existing = contacts.find(c => c.id === id);
-          if (!existing) return { id, contact };
-          
-          // Find imported contact by matching the existing contact to the imported
-          const importedMatch = importedContacts.find(ic => {
-            // Match by ID if possible
-            if (ic.id === id) return true;
-            // Match by email
-            if (ic.emailAddress && existing.emailAddress && 
-                ic.emailAddress.toLowerCase() === existing.emailAddress.toLowerCase()) return true;
-            // Match by name
-            if (ic.firstName === existing.firstName && ic.lastName === existing.lastName) return true;
-            return false;
-          });
-          
-          // If imported had notes but update doesn't, force add it
-          if (importedMatch?.notes && importedMatch.notes.trim() && (!contact.notes || !contact.notes.trim())) {
-            contact = { ...contact, notes: importedMatch.notes };
-            console.error(`🔧 FIXED: Added notes to ${existing.firstName} ${existing.lastName}: "${importedMatch.notes}"`);
-          }
-          
-          return { id, contact };
-        });
-
-        const updatesWithNotes = verifiedUpdates.filter(u => u.contact.notes && u.contact.notes.trim());
-        
-        alert(
-          `🔄 READY TO UPDATE\n` +
-          `Total updates: ${verifiedUpdates.length}\n` +
-          `Updates with notes: ${updatesWithNotes.length}\n\n` +
-          `${updatesWithNotes.length > 0 ? `First update with notes:\n${updatesWithNotes[0].contact.firstName} ${updatesWithNotes[0].contact.lastName}: "${updatesWithNotes[0].contact.notes?.substring(0, 50)}..."` : '⚠️ WARNING: No updates have notes!'}\n\n` +
-          `Click OK to call updateMultipleContacts...`
-        );
-
-        console.error(`🚨🚨🚨 CALLING BATCH UPDATE WITH ${verifiedUpdates.length} UPDATES 🚨🚨🚨`);
-        console.error(`Updates with notes BEFORE verification: ${updatesWithNotes.length}`);
-        
-        const verifiedWithNotes = verifiedUpdates.filter(u => u.contact.notes && u.contact.notes.trim());
-        console.error(`Updates with notes AFTER verification: ${verifiedWithNotes.length}`);
-        
-        // ALERT before calling batch update
-        alert(
-          `🚨 ABOUT TO CALL updateMultipleContacts\n\n` +
-          `Total updates: ${verifiedUpdates.length}\n` +
-          `Updates with notes: ${verifiedWithNotes.length}\n\n` +
-          `${verifiedWithNotes.length > 0 ? `First update with notes:\n${verifiedWithNotes[0].contact.firstName} ${verifiedWithNotes[0].contact.lastName}: "${verifiedWithNotes[0].contact.notes?.substring(0, 40)}..."` : '❌ NO UPDATES HAVE NOTES!'}\n\n` +
-          `Click OK to execute batch update...`
-        );
-        
-        updateMultipleContacts(verifiedUpdates);
-        
-        alert(`✅ updateMultipleContacts EXECUTED!\n\nFunction was called.\nNow wait 2 seconds, then click "🔍 Check Data" to verify notes were saved.`);
-      }
-
-      // Add new contacts
-      if (newContacts.length > 0) {
-        addContacts(newContacts);
-      }
-
-      // Final verification after a delay
-      setTimeout(() => {
-        const contactsKey = `contactChronicle_contacts_${JSON.parse(localStorage.getItem('contactChronicle_user') || '{}').id}`;
-        if (contactsKey.includes('contactChronicle_contacts_')) {
-          const saved = JSON.parse(localStorage.getItem(contactsKey) || '[]');
-          const savedWithNotes = saved.filter((c: Contact) => c.notes && c.notes.trim());
-          
-          alert(
-            `✅ IMPORT COMPLETE\n\n` +
-            `Total contacts: ${saved.length}\n` +
-            `Contacts with notes: ${savedWithNotes.length}\n\n` +
-            `${savedWithNotes.length === 0 ? '❌ WARNING: No notes were saved!' : '✅ Notes were saved successfully!'}`
-          );
-        }
-      }, 1000);
+      // Force reload to refresh React state from localStorage
+      window.location.reload();
 
       // Reset file input
       if (fileInputRef.current) {
