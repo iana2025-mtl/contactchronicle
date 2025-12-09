@@ -18,6 +18,64 @@ const Marker = dynamic(() => import('react-leaflet').then((mod) => mod.Marker), 
 const Popup = dynamic(() => import('react-leaflet').then((mod) => mod.Popup), { ssr: false });
 
 // ============================================================================
+// COUNTRY NAMES FILTER: Exclude country names from location extraction
+// ============================================================================
+const countryNames = new Set([
+  'usa', 'united states', 'united states of america', 'america', 'us', 'u.s.', 'u.s.a.',
+  'canada', 'canadian',
+  'mexico', 'mexican',
+  'united kingdom', 'uk', 'u.k.', 'britain', 'great britain', 'england', 'scotland', 'wales', 'ireland',
+  'france', 'french',
+  'germany', 'german',
+  'italy', 'italian',
+  'spain', 'spanish',
+  'portugal', 'portuguese',
+  'netherlands', 'holland', 'dutch',
+  'belgium', 'belgian',
+  'switzerland', 'swiss',
+  'austria', 'austrian',
+  'poland', 'polish',
+  'czech republic', 'czechia', 'czech',
+  'sweden', 'swedish',
+  'norway', 'norwegian',
+  'denmark', 'danish',
+  'finland', 'finnish',
+  'russia', 'russian',
+  'china', 'chinese',
+  'japan', 'japanese',
+  'india', 'indian',
+  'south korea', 'korea', 'korean',
+  'australia', 'australian',
+  'new zealand',
+  'brazil', 'brazilian',
+  'argentina', 'argentinian',
+  'chile', 'chilean',
+  'colombia', 'colombian',
+  'peru', 'peruvian',
+  'venezuela', 'venezuelan',
+  'south africa', 'south african',
+  'egypt', 'egyptian',
+  'nigeria', 'nigerian',
+  'kenya', 'kenyan',
+  'israel', 'israeli',
+  'saudi arabia', 'saudi',
+  'uae', 'united arab emirates',
+  'turkey', 'turkish',
+  'greece', 'greek',
+  'thailand', 'thai',
+  'vietnam', 'vietnamese',
+  'philippines', 'filipino',
+  'indonesia', 'indonesian',
+  'malaysia', 'malaysian',
+  'singapore', 'singaporean',
+  'hong kong',
+  'taiwan', 'taiwanese',
+  'pakistan', 'pakistani',
+  'bangladesh', 'bangladeshi',
+  'sri lanka', 'sri lankan',
+].map(name => name.toLowerCase()));
+
+// ============================================================================
 // COMPREHENSIVE CITY COORDINATES DATABASE
 // ============================================================================
 // All cities are validated with correct latitude (-90 to 90) and longitude (-180 to 180)
@@ -658,6 +716,31 @@ export default function MapPage() {
 
     const normalized = cityName.toLowerCase().trim();
 
+    // Filter out country names - don't geocode countries, only cities
+    if (countryNames.has(normalized)) {
+      console.log(`🚫 Skipping country name: "${cityName}"`);
+      return null;
+    }
+    
+    // Check if the location name contains a country name (e.g., "Japan" in "Tokyo, Japan")
+    // Extract just the city part if it's "City, Country" format
+    const parts = normalized.split(',').map(p => p.trim());
+    if (parts.length > 1) {
+      const lastPart = parts[parts.length - 1];
+      if (countryNames.has(lastPart)) {
+        // Extract just the city part (everything before the comma)
+        const cityOnly = parts.slice(0, -1).join(',').trim();
+        if (cityOnly) {
+          console.log(`🔍 Extracted city from "City, Country": "${cityOnly}" from "${cityName}"`);
+          // Recursively call with city only
+          return getCityCoordinates(cityOnly);
+        }
+        // If only country remains, skip it
+        console.log(`🚫 Skipping country-only location: "${cityName}"`);
+        return null;
+      }
+    }
+
     // Step 1: Exact match (highest priority)
     if (allCityCoordinates[normalized]) {
       const coords = allCityCoordinates[normalized];
@@ -737,7 +820,7 @@ export default function MapPage() {
     }
 
     return null;
-  }, [allCityCoordinates, geocodeCity]);
+  }, [allCityCoordinates, geocodeCity, getCityCoordinates]);
 
   const validateCoordinates = useCallback((coords: { lat: number; lng: number }): boolean => {
     if (isNaN(coords.lat) || isNaN(coords.lng)) {
@@ -952,8 +1035,21 @@ export default function MapPage() {
           }
           variations.push(cityToCheck);
           
+          // Skip if cityToCheck is a country name
+          if (countryNames.has(cityToCheck.toLowerCase())) {
+            console.log(`    🚫 Skipping country name: "${cityToCheck}"`);
+            continue;
+          }
+          
           // Try each variation
           for (const variant of variations) {
+            // Check if variant is a country name
+            const variantLower = variant.toLowerCase();
+            if (countryNames.has(variantLower) || countryNames.has(variantLower.split(',')[0].trim())) {
+              console.log(`    🚫 Skipping country name variant: "${variant}"`);
+              continue;
+            }
+            
             const coords = getCityCoordinates(variant);
             if (coords) {
               // Check if we already have this location (by coordinates, not name)
