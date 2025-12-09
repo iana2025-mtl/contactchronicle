@@ -62,6 +62,16 @@ const cityCoordinates: Record<string, { lat: number; lng: number; displayName: s
   'houston, tx': { lat: 29.7604, lng: -95.3698, displayName: 'Houston, TX' },
   'houston, texas': { lat: 29.7604, lng: -95.3698, displayName: 'Houston, TX' },
   'houston texas': { lat: 29.7604, lng: -95.3698, displayName: 'Houston, TX' },
+  'denver': { lat: 39.7392, lng: -104.9903, displayName: 'Denver, CO' },
+  'denver, co': { lat: 39.7392, lng: -104.9903, displayName: 'Denver, CO' },
+  'queens': { lat: 40.7282, lng: -73.7949, displayName: 'Queens, NY' },
+  'queens, ny': { lat: 40.7282, lng: -73.7949, displayName: 'Queens, NY' },
+  'las vegas': { lat: 36.1699, lng: -115.1398, displayName: 'Las Vegas, NV' },
+  'las vegas, nv': { lat: 36.1699, lng: -115.1398, displayName: 'Las Vegas, NV' },
+  'las vegas, ne': { lat: 36.1699, lng: -115.1398, displayName: 'Las Vegas, NV' }, // Handle typo (NE instead of NV)
+  'westerville': { lat: 40.1262, lng: -82.9291, displayName: 'Westerville, OH' },
+  'westerville, ohio': { lat: 40.1262, lng: -82.9291, displayName: 'Westerville, OH' },
+  'westerville, oh': { lat: 40.1262, lng: -82.9291, displayName: 'Westerville, OH' },
   // Canada
   'montreal': { lat: 45.5017, lng: -73.5673, displayName: 'Montreal, QC' },
   'montreal, qc': { lat: 45.5017, lng: -73.5673, displayName: 'Montreal, QC' },
@@ -94,9 +104,16 @@ const cityCoordinates: Record<string, { lat: number; lng: number; displayName: s
   'zurich, switzerland': { lat: 47.3769, lng: 8.5417, displayName: 'Zurich, Switzerland' },
   'zürich': { lat: 47.3769, lng: 8.5417, displayName: 'Zurich, Switzerland' },
   'zürich, switzerland': { lat: 47.3769, lng: 8.5417, displayName: 'Zurich, Switzerland' },
+  'prague': { lat: 50.0755, lng: 14.4378, displayName: 'Prague, Czech Republic' },
+  'prague, czech': { lat: 50.0755, lng: 14.4378, displayName: 'Prague, Czech Republic' },
+  'prague, czech republic': { lat: 50.0755, lng: 14.4378, displayName: 'Prague, Czech Republic' },
   // Other
   'chisinau': { lat: 47.0104, lng: 28.8638, displayName: 'Chisinau, Moldova' },
   'chisinau, moldova': { lat: 47.0104, lng: 28.8638, displayName: 'Chisinau, Moldova' },
+  'delhi': { lat: 28.6139, lng: 77.2090, displayName: 'Delhi, India' },
+  'delhi, india': { lat: 28.6139, lng: 77.2090, displayName: 'Delhi, India' },
+  'new delhi': { lat: 28.6139, lng: 77.2090, displayName: 'Delhi, India' },
+  'new delhi, india': { lat: 28.6139, lng: 77.2090, displayName: 'Delhi, India' },
 };
 
 // Validate all coordinates in database
