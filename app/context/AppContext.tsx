@@ -225,10 +225,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateContact = (id: string, contact: Partial<Contact>) => {
+    // Log stack trace to see WHERE this is being called from
     console.log('📝 CONTEXT: updateContact called');
     console.log(`  - Contact ID: ${id}`);
     console.log(`  - Updated fields:`, Object.keys(contact));
     console.log(`  - Full update object:`, contact);
+    console.trace('📝 CALL STACK for updateContact:');
     if (contact.notes) {
       console.log(`  - New notes value: "${contact.notes}"`);
       console.log(`  - Notes length: ${contact.notes.length}`);
