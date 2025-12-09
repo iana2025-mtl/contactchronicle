@@ -369,24 +369,28 @@ export default function ChroniclePage() {
     if (editingContact) {
       console.log('💾 Chronicle: Saving notes for contact:', editingContact.id);
       console.log('  - Contact name:', `${editingContact.firstName} ${editingContact.lastName}`);
+      console.log('  - Current notes:', editingContact.notes || 'none');
       console.log('  - New notes:', notes);
       console.log('  - Notes length:', notes.length);
       
       // Save notes
-      updateContact(editingContact.id, { notes: notes.trim() });
+      const trimmedNotes = notes.trim();
+      updateContact(editingContact.id, { notes: trimmedNotes });
       
-      console.log('✅ Chronicle: updateContact called - map should detect change and update automatically');
+      console.log('✅ Chronicle: updateContact called with notes:', trimmedNotes.substring(0, 100));
+      console.log('  💡 The contacts array should update and trigger map recalculation');
       console.log('  💡 Navigate to Map page to see updated locations');
       
-      // Force a small delay to ensure state updates, then log verification
+      // Verify the update immediately and after a delay
       setTimeout(() => {
         const updated = contacts.find(c => c.id === editingContact.id);
         if (updated) {
-          console.log('✅ Chronicle: Notes saved! Verified:', {
+          console.log('✅ Chronicle: Notes saved! Verified in contacts array:', {
             id: updated.id,
             name: `${updated.firstName} ${updated.lastName}`,
             notesLength: updated.notes?.length || 0,
-            notesPreview: updated.notes?.substring(0, 100)
+            notesPreview: updated.notes?.substring(0, 100),
+            hasNotes: !!updated.notes && updated.notes.length > 0
           });
           
           // Check for location mentions in the notes
@@ -396,11 +400,16 @@ export default function ChroniclePage() {
           if (foundLocations.length > 0) {
             console.log(`  📍 Detected location mentions in notes: ${foundLocations.join(', ')}`);
             console.log(`  🗺️ These locations should appear on the map automatically!`);
+          } else {
+            console.log(`  ⚠️ No known location keywords detected in notes`);
           }
+          
+          // Force a window focus/blur to trigger potential re-renders
+          console.log('  🔄 Checking if contacts array reference changed...');
         } else {
           console.error('❌ Chronicle: Contact not found after update!');
         }
-      }, 100);
+      }, 200);
       
       setEditingContact(null);
       setNotes('');

@@ -111,10 +111,29 @@ export default function MapPage() {
   const [mapKey, setMapKey] = useState(0); // Force map re-render when locations change
   const mapInstanceRef = useRef<any>(null); // Store map instance reference
   const previousContactsHashRef = useRef<string>(''); // Track previous hash to detect changes
+  const forceUpdateRef = useRef(0); // Force update counter
 
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // CRITICAL: Log when contacts prop changes from context
+  useEffect(() => {
+    console.log('🔍 MAP PAGE: contacts prop received from useApp()');
+    console.log(`  📊 Contacts array reference:`, contacts);
+    console.log(`  📊 Contacts array length: ${contacts.length}`);
+    const contactsWithNotes = contacts.filter(c => c.notes && c.notes.trim());
+    console.log(`  📝 Contacts with notes: ${contactsWithNotes.length}`);
+    
+    if (contactsWithNotes.length > 0) {
+      console.log(`  📝 Sample contacts with notes:`, contactsWithNotes.slice(0, 5).map(c => ({
+        id: c.id,
+        name: `${c.firstName} ${c.lastName}`,
+        notesLength: c.notes?.length || 0,
+        notesPreview: c.notes?.substring(0, 100)
+      })));
+    }
+  }, [contacts]);
 
   // Create a comprehensive hash of ALL contact data (including notes) to detect ANY changes
   const contactsHash = useMemo(() => {
@@ -125,11 +144,15 @@ export default function MapPage() {
     
     const hasChanged = hash !== previousContactsHashRef.current;
     if (hasChanged) {
-      console.log('🔄 MAP PAGE: contactsHash changed - contacts data updated');
+      console.log('🔄 MAP PAGE: contactsHash CHANGED - contacts data updated!');
       console.log(`  📊 Total contacts: ${contacts.length}`);
       const contactsWithNotes = contacts.filter(c => c.notes && c.notes.trim());
       console.log(`  📝 Contacts with notes: ${contactsWithNotes.length}`);
+      console.log(`  🔑 Hash changed from "${previousContactsHashRef.current.substring(0, 50)}..." to "${hash.substring(0, 50)}..."`);
       previousContactsHashRef.current = hash;
+      forceUpdateRef.current += 1; // Increment force update counter
+    } else {
+      console.log('🔄 MAP PAGE: contactsHash unchanged - no updates detected');
     }
     
     return hash;
@@ -147,16 +170,19 @@ export default function MapPage() {
   // CRITICAL: Force map update whenever contacts or timeline changes
   useEffect(() => {
     console.log('🔄 MAP PAGE: Data change detected - forcing map recalculation!');
-    console.log(`  📊 Contacts hash changed: ${contactsHash.substring(0, 50)}...`);
-    console.log(`  📊 Timeline hash changed: ${timelineHash.substring(0, 50)}...`);
+    console.log(`  📊 Contacts hash: ${contactsHash.substring(0, 50)}...`);
+    console.log(`  📊 Timeline hash: ${timelineHash.substring(0, 50)}...`);
+    console.log(`  📊 Force update counter: ${forceUpdateRef.current}`);
+    console.log(`  📊 Contacts array reference:`, contacts);
+    console.log(`  📊 Contacts with notes: ${contacts.filter(c => c.notes && c.notes.trim()).length}`);
     
     // Force map re-render by updating key
     setMapKey(prev => {
       const newKey = prev + 1;
-      console.log(`  🗺️ Map key updated from ${prev} to ${newKey} - map will remount`);
+      console.log(`  🗺️ Map key updated from ${prev} to ${newKey} - map will remount and recalculate ALL markers`);
       return newKey;
     });
-  }, [contactsHash, timelineHash]);
+  }, [contactsHash, timelineHash, contacts]);
 
   // Set up Leaflet icons once when component mounts
   useEffect(() => {

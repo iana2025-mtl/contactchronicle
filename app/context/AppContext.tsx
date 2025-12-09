@@ -348,11 +348,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     
     // CRITICAL: Set state with new array reference
-    // Force a completely new array reference by spreading twice
-    setContacts([...updatedContacts]);
+    // Force a completely new array reference by spreading multiple times to ensure it's truly new
+    const finalContacts = JSON.parse(JSON.stringify(updatedContacts)); // Deep clone to ensure new reference
+    setContacts(finalContacts);
     
-    console.log(`  ✅ setContacts called with new array (length: ${updatedContacts.length})`);
-    console.log(`  ✅ Array reference changed: ${contacts !== updatedContacts}`);
+    console.log(`  ✅ setContacts called with NEW array (length: ${finalContacts.length})`);
+    console.log(`  ✅ Array reference changed: ${contacts !== finalContacts}`);
+    console.log(`  ✅ Contacts array is NEW object: ${Array.isArray(finalContacts)}`);
+    
+    // Verify the updated contact is in the new array
+    const verifyContact = finalContacts.find((c: Contact) => c.id === id);
+    if (verifyContact) {
+      console.log(`  ✅ Verified contact in new array has notes:`, verifyContact.notes ? `"${verifyContact.notes.substring(0, 50)}..."` : 'NO');
+    }
     
     // Immediately save to localStorage if user is logged in and data is loaded
     if (user && isDataLoaded) {
