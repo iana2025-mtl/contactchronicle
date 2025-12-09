@@ -772,7 +772,7 @@ export default function ChroniclePage() {
                     if (contactsJson) {
                       const contacts: Contact[] = JSON.parse(contactsJson);
                       const withNotes = contacts.filter(c => c.notes && c.notes.trim());
-                      alert(
+                      window.alert(
                         `📊 CURRENT DATA STATUS\n` +
                         `Total contacts: ${contacts.length}\n` +
                         `Contacts with notes: ${withNotes.length}\n` +
@@ -784,13 +784,48 @@ export default function ChroniclePage() {
                     }
                   }
                 } catch (error) {
-                  alert('Error checking data: ' + error);
+                  window.alert('Error checking data: ' + error);
                 }
               }}
               className="px-4 py-2 text-sm bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors whitespace-nowrap font-medium"
               title="Check current data status"
             >
               🔍 Check Data
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  // TEST: Manually add notes to a contact to verify system works
+                  const testContact = contacts.find(c => c.firstName === 'Wesley' && c.lastName?.includes('Handy'));
+                  if (testContact) {
+                    window.alert(`🧪 TEST: Adding notes to "${testContact.firstName} ${testContact.lastName}"\nNotes: "Lives in Virginia Beach, VA"`);
+                    updateContact(testContact.id, { notes: 'Lives in Virginia Beach, VA' });
+                    setTimeout(() => {
+                      const userJson = localStorage.getItem('contactChronicle_user');
+                      if (userJson) {
+                        const user = JSON.parse(userJson);
+                        const contactsKey = `contactChronicle_contacts_${user.id}`;
+                        const saved = JSON.parse(localStorage.getItem(contactsKey) || '[]');
+                        const savedContact = saved.find((c: Contact) => c.id === testContact.id);
+                        window.alert(
+                          `🧪 TEST RESULT:\n` +
+                          `Contact: ${savedContact?.firstName} ${savedContact?.lastName}\n` +
+                          `Has notes: ${savedContact?.notes ? 'YES' : 'NO'}\n` +
+                          `Notes value: "${savedContact?.notes || 'MISSING'}"`
+                        );
+                      }
+                    }, 1000);
+                  } else {
+                    window.alert('Test contact not found');
+                  }
+                } catch (error) {
+                  window.alert('Test error: ' + error);
+                }
+              }}
+              className="px-4 py-2 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors whitespace-nowrap font-medium"
+              title="Test if notes can be saved manually"
+            >
+              🧪 Test Notes
             </button>
             <button
               onClick={() => {
