@@ -262,16 +262,33 @@ export default function ChroniclePage() {
               source: imported.source || existing.source || 'Uploaded',
             };
             
-            // CRITICAL: ALWAYS copy notes from imported if the key exists (using 'in' operator)
-            if ('notes' in imported) {
+            // CRITICAL: Copy notes from imported - check multiple ways to ensure we catch it
+            // Method 1: Check if 'notes' key exists
+            // Method 2: Check if imported.notes has a value
+            // Always prefer imported notes over existing
+            if ('notes' in imported && imported.notes !== undefined && imported.notes !== null) {
+              // Imported has notes - use it (even if empty string, it's explicitly set)
               contactToUpdate.notes = imported.notes;
-              if (imported.notes && imported.notes.trim()) {
+              if (imported.notes.trim().length > 0) {
                 notesUpdatedCount++;
                 console.log(`  ✅ [${notesUpdatedCount}] "${imported.firstName} ${imported.lastName}" - Notes: "${imported.notes.substring(0, 50)}..."`);
               }
             } else if (existing.notes) {
-              // Imported has no notes key, keep existing
+              // Imported has no notes, but existing does - keep existing
               contactToUpdate.notes = existing.notes;
+            }
+            // If neither has notes, contactToUpdate.notes stays undefined (don't set field)
+            
+            // VERIFY notes is in contactToUpdate before pushing
+            if (contactToUpdate.notes && contactToUpdate.notes.trim()) {
+              console.log(`  ✅ VERIFIED: contactToUpdate has notes: "${contactToUpdate.notes.substring(0, 40)}..."`);
+            } else if (imported.notes && imported.notes.trim()) {
+              console.error(`  ❌ ERROR: imported has notes but contactToUpdate doesn't!`);
+              console.error(`    imported.notes: "${imported.notes}"`);
+              console.error(`    contactToUpdate.notes:`, contactToUpdate.notes);
+              // Force add as last resort
+              contactToUpdate.notes = imported.notes;
+              console.error(`  🔧 FORCE ADDED notes to contactToUpdate`);
             }
             
             contactsToUpdate.push({
