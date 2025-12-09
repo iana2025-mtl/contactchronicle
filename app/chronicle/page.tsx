@@ -272,8 +272,7 @@ export default function ChroniclePage() {
           }
 
           if (existing) {
-            // BUILD COMPLETE CONTACT OBJECT with ALL fields explicitly
-            // This ensures no field is accidentally omitted
+            // STEP 1: Build base contact object with ALL fields
             const contactToUpdate: Partial<Contact> = {
               id: existing.id, // Always preserve existing ID
               firstName: imported.firstName || existing.firstName || '',
@@ -286,54 +285,63 @@ export default function ChroniclePage() {
               source: imported.source || existing.source || 'Uploaded',
             };
             
-            // CRITICAL: Handle notes field - ALWAYS check imported first
-            // Use 'in' operator to check if key exists, then check value
-            const importedHasNotesKey = 'notes' in imported;
-            const importedHasNotesValue = imported.notes !== undefined && 
-                                          imported.notes !== null && 
-                                          typeof imported.notes === 'string' && 
-                                          imported.notes.trim().length > 0;
-            
-            if (importedHasNotesKey && importedHasNotesValue) {
-              // Imported explicitly has notes with content - USE IT
+            // STEP 2: Handle notes - SIMPLIFIED LOGIC
+            // Priority: imported.notes > existing.notes > undefined
+            if (imported.notes !== undefined && imported.notes !== null) {
+              // Imported has notes (even if empty string) - use it
               contactToUpdate.notes = imported.notes;
-              notesUpdatedCount++;
-              console.log(`  ✅ [${notesUpdatedCount}] "${imported.firstName} ${imported.lastName}" - Notes: "${imported.notes.substring(0, 50)}..."`);
-            } else if (importedHasNotesKey && imported.notes === '') {
-              // Imported has notes key but it's empty string - clear existing notes
-              contactToUpdate.notes = '';
-              console.log(`  ℹ️ "${imported.firstName} ${imported.lastName}" - Clearing notes (imported has empty notes)`);
+              if (imported.notes.trim().length > 0) {
+                notesUpdatedCount++;
+                console.log(`  ✅ [${notesUpdatedCount}] "${imported.firstName} ${imported.lastName}" - Notes: "${imported.notes.substring(0, 50)}..."`);
+              }
             } else if (existing.notes) {
               // Imported has no notes, keep existing
               contactToUpdate.notes = existing.notes;
-              console.log(`  ℹ️ "${imported.firstName} ${imported.lastName}" - Keeping existing notes`);
             }
-            // If neither has notes, contactToUpdate.notes stays undefined
+            // If neither has notes, contactToUpdate.notes stays undefined (this is OK)
             
-            // FINAL VERIFICATION: Log the exact object being pushed
-            console.log(`  🔍 FINAL contactToUpdate for "${imported.firstName} ${imported.lastName}":`, {
-              id: contactToUpdate.id,
-              name: `${contactToUpdate.firstName} ${contactToUpdate.lastName}`,
-              hasNotesKey: 'notes' in contactToUpdate,
-              notesValue: contactToUpdate.notes !== undefined ? `"${(contactToUpdate.notes || '').substring(0, 40)}..."` : 'UNDEFINED',
+            // STEP 3: VERIFY notes are in the object BEFORE pushing
+            const finalHasNotes = contactToUpdate.notes !== undefined;
+            const finalNotesValue = contactToUpdate.notes || '';
+            const finalNotesLength = finalNotesValue.length;
+            
+            console.log(`  🔍 VERIFICATION for "${imported.firstName} ${imported.lastName}":`, {
+              importedHasNotes: imported.notes !== undefined && imported.notes !== null && imported.notes.trim().length > 0,
+              importedNotesPreview: imported.notes ? `"${imported.notes.substring(0, 40)}..."` : 'none',
+              contactToUpdateHasNotes: finalHasNotes,
+              contactToUpdateNotesPreview: finalHasNotes ? `"${finalNotesValue.substring(0, 40)}..."` : 'UNDEFINED',
               allKeys: Object.keys(contactToUpdate),
-              jsonHasNotes: JSON.stringify(contactToUpdate).includes('"notes"')
+              jsonString: JSON.stringify(contactToUpdate).substring(0, 200)
             });
             
-            // CRITICAL: If imported had notes but contactToUpdate doesn't, FORCE ADD IT
-            if (importedHasNotesValue && (!contactToUpdate.notes || !contactToUpdate.notes.trim())) {
-              console.error(`  ❌❌❌ CRITICAL ERROR: Imported has notes but contactToUpdate missing!`);
-              console.error(`    Imported notes: "${imported.notes}"`);
-              console.error(`    contactToUpdate before force:`, JSON.stringify(contactToUpdate, null, 2));
-              contactToUpdate.notes = imported.notes;
-              console.error(`  🔧🔧🔧 FORCE ADDED notes: "${contactToUpdate.notes.substring(0, 50)}..."`);
-              notesUpdatedCount++; // Count it since we're adding it
+            // STEP 4: EMERGENCY CHECK - if imported had notes but contactToUpdate doesn't, FORCE ADD
+            const importedHasRealNotes = imported.notes && imported.notes.trim().length > 0;
+            if (importedHasRealNotes && (!contactToUpdate.notes || !contactToUpdate.notes.trim())) {
+              console.error(`  ❌❌❌ EMERGENCY: Imported had notes but contactToUpdate missing!`);
+              console.error(`    Imported: "${imported.notes}"`);
+              console.error(`    Before force - contactToUpdate keys:`, Object.keys(contactToUpdate));
+              contactToUpdate.notes = imported.notes; // Force add
+              console.error(`  🔧🔧🔧 FORCE ADDED: "${contactToUpdate.notes}"`);
+              if (notesUpdatedCount === 0 || !contactsToUpdate.find(u => u.id === existing.id)) {
+                notesUpdatedCount++; // Only count if not already counted
+              }
             }
             
-            contactsToUpdate.push({
-              id: existing.id,
-              contact: contactToUpdate,
-            });
+            // STEP 5: FINAL CHECK before pushing
+            if (importedHasRealNotes && (!contactToUpdate.notes || !contactToUpdate.notes.trim())) {
+              console.error(`  ❌❌❌ STILL MISSING NOTES AFTER FORCE ADD!`);
+              console.error(`    contactToUpdate:`, JSON.stringify(contactToUpdate, null, 2));
+              // Last resort: create new object with notes explicitly
+              contactsToUpdate.push({
+                id: existing.id,
+                contact: { ...contactToUpdate, notes: imported.notes! },
+              });
+            } else {
+              contactsToUpdate.push({
+                id: existing.id,
+                contact: contactToUpdate,
+              });
+            }
           } else {
             // Add as new contact - preserve all fields including notes
             const newContact: Contact = {
