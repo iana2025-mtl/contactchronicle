@@ -115,10 +115,69 @@ export default function MapPage() {
   const [mapReady, setMapReady] = useState(false);
   const [mapKey, setMapKey] = useState(0);
   const [missingCities, setMissingCities] = useState<Set<string>>(new Set());
+  const [localContacts, setLocalContacts] = useState<Contact[]>([]); // Local state to force updates
   const mapInstanceRef = useRef<any>(null);
   const previousContactsHashRef = useRef<string>('');
   const forceUpdateRef = useRef(0);
   const lastStorageCheckRef = useRef<string>('');
+  
+  // CRITICAL: Sync local contacts state with localStorage and context
+  // This ensures we always have the latest data even if context is stale
+  useEffect(() => {
+    if (!user) {
+      setLocalContacts([]);
+      return;
+    }
+    
+    const contactsKey = `contactChronicle_contacts_${user.id}`;
+    const stored = localStorage.getItem(contactsKey);
+    
+    if (stored) {
+      try {
+        const storedContacts: Contact[] = JSON.parse(stored);
+        const storedHash = storedContacts.map(c => {
+          const notesContent = c.notes || '';
+          return `${c.id}:${c.firstName}:${c.lastName}:${notesContent}`;
+        }).join('|');
+        
+        const currentHash = localContacts.map(c => {
+          const notesContent = c.notes || '';
+          return `${c.id}:${c.firstName}:${c.lastName}:${notesContent}`;
+        }).join('|');
+        
+        if (storedHash !== currentHash) {
+          console.log('🔄 MAP PAGE: Reloading contacts from localStorage');
+          console.log(`  📊 Stored contacts: ${storedContacts.length}`);
+          const withNotes = storedContacts.filter(c => c.notes && c.notes.trim());
+          console.log(`  📝 Stored contacts with notes: ${withNotes.length}`);
+          setLocalContacts([...storedContacts]); // New array reference
+        }
+      } catch (error) {
+        console.error('Error loading contacts from localStorage:', error);
+      }
+    }
+    
+    // Also sync with context contacts if they differ
+    if (contacts.length > 0) {
+      const contextHash = contacts.map(c => {
+        const notesContent = c.notes || '';
+        return `${c.id}:${c.firstName}:${c.lastName}:${notesContent}`;
+      }).join('|');
+      
+      const localHash = localContacts.map(c => {
+        const notesContent = c.notes || '';
+        return `${c.id}:${c.firstName}:${c.lastName}:${notesContent}`;
+      }).join('|');
+      
+      if (contextHash !== localHash) {
+        console.log('🔄 MAP PAGE: Syncing with context contacts');
+        setLocalContacts([...contacts]);
+      }
+    }
+  }, [user, contacts, localContacts]);
+  
+  // Use localContacts if available, otherwise fall back to context contacts
+  const activeContacts = localContacts.length > 0 ? localContacts : contacts;
 
   // Initialize client-side and set up listeners
   useEffect(() => {
@@ -140,13 +199,13 @@ export default function MapPage() {
               return `${c.id}:${c.firstName}:${c.lastName}:${notesContent}:${c.dateAdded || ''}`;
             }).join('|');
             
-            const currentHash = contacts.map(c => {
+            const currentHash = activeContacts.map(c => {
               const notesContent = c.notes || '';
               return `${c.id}:${c.firstName}:${c.lastName}:${notesContent}:${c.dateAdded || ''}`;
             }).join('|');
             
             console.log(`  📊 Stored contacts with notes: ${storedWithNotes.length}`);
-            console.log(`  📊 Current contacts with notes: ${contacts.filter(c => c.notes && c.notes.trim()).length}`);
+            console.log(`  📊 Current activeContacts with notes: ${activeContacts.filter(c => c.notes && c.notes.trim()).length}`);
             console.log(`  📊 Hash comparison - Stored length: ${storedHash.length}, Current length: ${currentHash.length}`);
             
             if (storedHash !== currentHash) {
@@ -256,10 +315,11 @@ export default function MapPage() {
     };
   }, [user, contacts]);
 
-  // Track contacts hash changes - CRITICAL: Include notes in hash to detect ANY note changes
+  // Track contacts hash changes - CRITICAL: Use activeContacts (localStorage + context)
   const contactsHash = useMemo(() => {
     // Create hash that includes ALL contact data, especially notes
-    const hash = contacts.map(c => {
+    // Use activeContacts which combines localStorage and context
+    const hash = activeContacts.map(c => {
       const notesContent = c.notes || '';
       return `${c.id}:${c.firstName}:${c.lastName}:${notesContent}:${c.dateAdded || ''}`;
     }).join('|');
@@ -267,8 +327,8 @@ export default function MapPage() {
     const hasChanged = hash !== previousContactsHashRef.current;
     if (hasChanged) {
       console.log('🔄 MAP PAGE: contactsHash CHANGED - contacts data updated!');
-      console.log(`  📊 Total contacts: ${contacts.length}`);
-      const contactsWithNotes = contacts.filter(c => c.notes && c.notes.trim());
+      console.log(`  📊 Total contacts: ${activeContacts.length}`);
+      const contactsWithNotes = activeContacts.filter(c => c.notes && c.notes.trim());
       console.log(`  📝 Contacts with notes: ${contactsWithNotes.length}`);
       
       // Log sample of notes to verify they're in the hash
@@ -288,7 +348,7 @@ export default function MapPage() {
     }
     
     return hash;
-  }, [contacts]);
+  }, [activeContacts]);
 
   const timelineHash = useMemo(() => {
     return JSON.stringify(timelineEvents.map(e => ({
@@ -305,9 +365,9 @@ export default function MapPage() {
     console.log(`  📊 Contacts hash preview: ${contactsHash.substring(0, 100)}...`);
     console.log(`  📊 Timeline hash: ${timelineHash.substring(0, 50)}...`);
     console.log(`  📊 Force update counter: ${forceUpdateRef.current}`);
-    console.log(`  📊 Contacts array length: ${contacts.length}`);
-    console.log(`  📊 Contacts array reference:`, contacts);
-    const contactsWithNotes = contacts.filter(c => c.notes && c.notes.trim());
+    console.log(`  📊 Active contacts length: ${activeContacts.length}`);
+    console.log(`  📊 Active contacts array reference:`, activeContacts);
+    const contactsWithNotes = activeContacts.filter(c => c.notes && c.notes.trim());
     console.log(`  📊 Contacts with notes: ${contactsWithNotes.length}`);
     
     if (contactsWithNotes.length > 0) {
@@ -639,7 +699,7 @@ export default function MapPage() {
     }
     
     const periodsWithContacts = periods.map(period => {
-      const matchedContacts = contacts.filter(contact => {
+      const matchedContacts = activeContacts.filter(contact => {
         if (!contact.dateAdded) return false;
         const contactDate = parseDate(contact.dateAdded);
         if (!contactDate) return false;
@@ -656,14 +716,15 @@ export default function MapPage() {
     
     console.log(`  ✅ Created ${periodsWithContacts.length} timeline location periods`);
     return [...periodsWithContacts];
-  }, [timelineEvents, contacts, extractLocation, getCityCoordinates, parseDate]);
+  }, [timelineEvents, activeContacts, extractLocation, getCityCoordinates, parseDate]);
 
   // Build location markers from notes - FULLY REACTIVE
+  // CRITICAL: Use activeContacts instead of contacts to ensure latest data
   const locationMarkersFromNotes = useMemo(() => {
     console.log('🔍 RECALCULATING: locationMarkersFromNotes');
-    console.log(`  - Contacts array reference:`, contacts);
-    console.log(`  - Contacts array length: ${contacts.length}`);
-    const contactsWithNotes = contacts.filter(c => c.notes && c.notes.trim());
+    console.log(`  - Active contacts array reference:`, activeContacts);
+    console.log(`  - Active contacts array length: ${activeContacts.length}`);
+    const contactsWithNotes = activeContacts.filter(c => c.notes && c.notes.trim());
     console.log(`  - Contacts with notes: ${contactsWithNotes.length}`);
     
     // Log all contacts with notes for debugging
@@ -680,7 +741,7 @@ export default function MapPage() {
     let processedCount = 0;
     let locationsFoundCount = 0;
     
-    contacts.forEach(contact => {
+    activeContacts.forEach(contact => {
       if (!contact.notes || !contact.notes.trim()) return;
       
       processedCount++;
@@ -751,7 +812,7 @@ export default function MapPage() {
     const result = [...periods];
     console.log(`  ✅ RETURNING ${result.length} location markers from notes (new array reference)`);
     return result;
-  }, [contacts, contactsHash, extractLocationsFromNotes, getCityCoordinates, locationPeriodsFromTimeline]);
+  }, [activeContacts, contactsHash, extractLocationsFromNotes, getCityCoordinates, locationPeriodsFromTimeline]);
 
   // Combine timeline and notes locations
   const locationPeriods = useMemo(() => {
@@ -890,12 +951,12 @@ export default function MapPage() {
       });
     } else {
       console.log(`  ⚠️ No locations found!`);
-      console.log(`  - Contacts: ${contacts.length}`);
-      console.log(`  - Contacts with notes: ${contacts.filter(c => c.notes && c.notes.trim()).length}`);
+      console.log(`  - Active contacts: ${activeContacts.length}`);
+      console.log(`  - Contacts with notes: ${activeContacts.filter(c => c.notes && c.notes.trim()).length}`);
       console.log(`  - Timeline events: ${timelineEvents.length}`);
     }
     console.log(`🗺️ ====================================`);
-  }, [locationPeriods, mapKey, contacts, timelineEvents]);
+  }, [locationPeriods, mapKey, activeContacts, timelineEvents]);
 
   // Fit map bounds when locations or mapReady changes (must be after mapBounds declaration)
   useEffect(() => {
@@ -974,7 +1035,7 @@ export default function MapPage() {
     );
   }
 
-  const contactsWithNotes = contacts.filter(c => c.notes && c.notes.trim());
+  const contactsWithNotes = activeContacts.filter(c => c.notes && c.notes.trim());
   const timelineGeoEvents = timelineEvents.filter(e => e.geographicEvent && e.geographicEvent.trim());
 
   return (
@@ -1009,7 +1070,7 @@ export default function MapPage() {
                   <p className="font-bold mb-2 text-purple-800">Current Data:</p>
                   <p>📍 Timeline events: {timelineEvents.length}</p>
                   <p>🌍 Geographic events: {timelineGeoEvents.length}</p>
-                  <p>👥 Total contacts: {contacts.length}</p>
+                  <p>👥 Total contacts: {activeContacts.length}</p>
                   <p>📝 Contacts with notes: {contactsWithNotes.length}</p>
                   <p className="mt-2 pt-2 border-t border-purple-200">
                     <span className="font-bold">Map locations: {locationPeriods.length}</span>
