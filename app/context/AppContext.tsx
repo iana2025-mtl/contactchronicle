@@ -268,61 +268,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Create a COMPLETELY NEW array (not just mapped, but spread to ensure new reference)
     const updatedContacts = [...contacts.map(c => {
       if (c.id === id) {
-        // CRITICAL: Preserve notes - don't let undefined/null overwrite existing notes
-        // First, check if update has notes field (even if value is undefined)
-        const updateHasNotesKey = 'notes' in contact;
-        const updateHasNotesValue = contact.notes !== undefined && contact.notes !== null && contact.notes !== '';
+        // CRITICAL: Handle notes explicitly
+        // If 'notes' key exists in update object:
+        //   - If value is empty string '' → DELETE notes
+        //   - If value is non-empty → UPDATE notes
+        // If 'notes' key does NOT exist → PRESERVE existing notes
+        const hasNotesKey = 'notes' in contact;
+        const notesValue = contact.notes;
         
-        // Build updated contact, being very careful about notes field
-        let updated: Contact;
-        if (updateHasNotesKey && updateHasNotesValue) {
-          // Update has notes with value - use it
-          updated = { 
-            ...c, 
-            ...contact,
-            notes: contact.notes,
-            id: c.id // Always preserve original ID
-          };
-        } else if (updateHasNotesKey && contact.notes === '') {
-          // Update explicitly sets notes to empty string - clear it
-          updated = { 
-            ...c, 
-            ...contact,
-            notes: '',
-            id: c.id
-          };
-        } else {
-          // Update doesn't have notes or has undefined/null - preserve existing notes
-          const { notes, ...contactWithoutNotes } = contact; // Remove notes from spread
-          updated = { 
-            ...c, 
-            ...contactWithoutNotes,
-            notes: c.notes, // Explicitly preserve existing notes
-            id: c.id // Always preserve original ID
-          };
-        }
-        console.log(`  - Merged contact object:`, updated);
-        console.log(`  - Contact update had notes:`, contact.notes ? `"${contact.notes.substring(0, 50)}..."` : 'NO');
-        console.log(`  - Original contact had notes:`, c.notes ? `"${c.notes.substring(0, 50)}..."` : 'NO');
-        if (updated.notes) {
-          console.log(`  - ✅ Merged contact HAS notes: "${updated.notes.substring(0, 100)}..."`);
-        } else {
-          // Only log as warning if notes were expected but missing - don't log for contacts that legitimately have no notes
-          if (updateHasNotesKey && updateHasNotesValue) {
-            // We expected notes but they're missing - this is an error
-            console.error(`  - ❌❌❌ Merged contact MISSING notes when notes were provided!`);
-            console.error(`  - Contact update object keys:`, Object.keys(contact));
-            console.error(`  - 'notes' in contact:`, 'notes' in contact);
-            console.error(`  - Existing contact notes:`, c.notes || 'none');
-            console.error(`  - Update has notes:`, contact.notes || 'none');
-          } else if (c.notes) {
-            // Existing contact had notes but they were cleared unintentionally
-            console.warn(`  - ⚠️ Existing contact had notes but merged contact doesn't - preserving existing notes`);
-            // Force-preserve existing notes
-            updated.notes = c.notes;
+        // Build updated contact
+        const updated: Contact = {
+          ...c,
+          ...contact,
+          id: c.id // Always preserve original ID
+        };
+        
+        if (hasNotesKey) {
+          // Notes key exists - use the value (empty string = delete, non-empty = update)
+          updated.notes = notesValue || '';
+          if (notesValue === '' || !notesValue) {
+            console.log(`  - 🗑️ DELETING notes (empty string provided)`);
+          } else {
+            console.log(`  - ✅ UPDATING notes: "${notesValue.substring(0, 50)}..."`);
           }
-          // Otherwise, contact legitimately has no notes - no need to log
+        } else {
+          // Notes key not in update - preserve existing
+          updated.notes = c.notes || '';
+          console.log(`  - 📌 PRESERVING existing notes: "${updated.notes.substring(0, 50)}..."`);
         }
+        
+        console.log(`  - Final notes length: ${updated.notes.length}`);
         return updated;
       }
       return c;
