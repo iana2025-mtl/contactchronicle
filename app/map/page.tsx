@@ -281,15 +281,27 @@ export default function MapPage() {
     })));
   }, [timelineEvents]);
 
-  // Force map update on data changes
+  // Force map update on data changes - CRITICAL: This triggers map recalculation
   useEffect(() => {
     console.log('🔄 MAP PAGE: Data change detected - forcing map recalculation!');
-    console.log(`  📊 Contacts hash: ${contactsHash.substring(0, 100)}...`);
+    console.log(`  📊 Contacts hash length: ${contactsHash.length}`);
+    console.log(`  📊 Contacts hash preview: ${contactsHash.substring(0, 100)}...`);
     console.log(`  📊 Timeline hash: ${timelineHash.substring(0, 50)}...`);
     console.log(`  📊 Force update counter: ${forceUpdateRef.current}`);
     console.log(`  📊 Contacts array length: ${contacts.length}`);
-    console.log(`  📊 Contacts with notes: ${contacts.filter(c => c.notes && c.notes.trim()).length}`);
+    console.log(`  📊 Contacts array reference:`, contacts);
+    const contactsWithNotes = contacts.filter(c => c.notes && c.notes.trim());
+    console.log(`  📊 Contacts with notes: ${contactsWithNotes.length}`);
     
+    if (contactsWithNotes.length > 0) {
+      console.log(`  📝 Sample contacts with notes:`, contactsWithNotes.slice(0, 3).map(c => ({
+        name: `${c.firstName} ${c.lastName}`,
+        notesLength: c.notes?.length || 0,
+        notesPreview: c.notes?.substring(0, 100)
+      })));
+    }
+    
+    // Force map remount to recalculate all locations
     setMapKey(prev => {
       const newKey = prev + 1;
       console.log(`  🗺️ Map key updated from ${prev} to ${newKey} - map will remount and recalculate ALL markers`);

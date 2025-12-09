@@ -133,7 +133,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (savedContacts) {
       try {
         const parsedContacts = JSON.parse(savedContacts);
-        setContacts(parsedContacts);
+        // Ensure we create a new array reference
+        setContacts([...parsedContacts]);
+        console.log(`📥 Loaded ${parsedContacts.length} contacts from localStorage`);
+        const withNotes = parsedContacts.filter((c: Contact) => c.notes && c.notes.trim());
+        console.log(`  📝 Contacts with notes: ${withNotes.length}`);
       } catch (error) {
         console.error('Error parsing contacts data:', error);
         setContacts([]);
