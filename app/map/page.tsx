@@ -618,11 +618,19 @@ export default function MapPage() {
     });
     
     console.log(`  🎯 Created ${periods.length} location markers from notes`);
+    
+    // Log all locations found for debugging
+    if (periods.length > 0) {
+      console.log(`  📍 All locations found:`, periods.map(p => `${p.city} [${p.coordinates.lat}, ${p.coordinates.lng}] - ${p.contacts.length} contacts`));
+    } else {
+      console.log(`  ⚠️ No locations found from notes!`);
+    }
+    
     // Return NEW array to ensure React detects changes
     const result = [...periods];
     console.log(`  ✅ Returning ${result.length} location markers`);
     return result;
-  }, [contacts, locationPeriodsFromTimeline]); // CRITICAL: contacts is a direct dependency - will recalculate when contacts array reference changes
+  }, [contacts, contactsNotesHash, locationPeriodsFromTimeline]); // CRITICAL: contacts, contactsNotesHash as dependencies - will recalculate when ANY contact note changes
 
   // Combine both timeline and notes locations - deduplicate by coordinates
   // CRITICAL: Always create new objects/arrays to ensure React detects changes
