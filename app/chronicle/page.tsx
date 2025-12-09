@@ -582,7 +582,20 @@ export default function ChroniclePage() {
           }
           console.log(`🚨🚨🚨 CALLING updateMultipleContacts NOW 🚨🚨🚨\n`);
           
+          // ALERT to confirm batch update is being called (can't be filtered)
+          const notesCount = contactsToUpdate.filter(u => u.contact.notes && u.contact.notes.trim()).length;
+          window.alert(
+            `🚨 BATCH UPDATE CALL\n` +
+            `About to call updateMultipleContacts with:\n` +
+            `- ${contactsToUpdate.length} total contacts\n` +
+            `- ${notesCount} contacts with notes\n\n` +
+            `Click OK to execute batch update...`
+          );
+          
           updateMultipleContacts(contactsToUpdate);
+          
+          // Alert after batch update call
+          window.alert(`✅ Batch update function called! Check console for results.`);
         }
         
         // Add new contacts
