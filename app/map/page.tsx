@@ -107,18 +107,17 @@ export default function MapPage() {
   }, []);
 
   // Track changes to contacts and timelineEvents to trigger map updates
-  // Use JSON.stringify to detect deep changes, not just reference changes
-  const contactsSerialized = useMemo(() => {
-    const serialized = JSON.stringify(contacts.map(c => ({
-      id: c.id,
-      notes: c.notes,
-      firstName: c.firstName,
-      lastName: c.lastName
-    })));
-    console.log('🔍 MAP PAGE: contactsSerialized recalculated, contacts array reference changed:', contacts);
-    return serialized;
+  // Create a hash based on all contact notes to detect ANY note changes
+  const contactsNotesHash = useMemo(() => {
+    // Create hash from all contacts' notes - ANY change will trigger recalculation
+    const notesHash = contacts.map(c => `${c.id}:${c.notes || ''}`).join('|');
+    console.log('🔍 MAP PAGE: contactsNotesHash recalculated');
+    console.log(`  📊 Contacts: ${contacts.length}`);
+    console.log(`  📝 Contacts with notes: ${contacts.filter(c => c.notes && c.notes.trim()).length}`);
+    return notesHash;
   }, [contacts]);
 
+  // Track timeline events changes
   const timelineSerialized = useMemo(() => {
     const serialized = JSON.stringify(timelineEvents.map(e => ({
       id: e.id,
@@ -137,45 +136,46 @@ export default function MapPage() {
     const contactsWithNotes = contacts.filter(c => c.notes && c.notes.trim());
     console.log(`  📝 Contacts with notes: ${contactsWithNotes.length}`);
     
-    // Search for Berlin in notes to help debug
-    const berlinMentions = contacts.filter(c => 
-      c.notes && c.notes.toLowerCase().includes('berlin')
-    );
-    if (berlinMentions.length > 0) {
-      console.log(`  🔍 Found ${berlinMentions.length} contact(s) mentioning Berlin:`, berlinMentions.map(c => ({
+    // Show sample notes to verify they're present
+    if (contactsWithNotes.length > 0) {
+      console.log(`  📝 Sample contact notes:`, contactsWithNotes.slice(0, 5).map(c => ({
+        id: c.id,
         name: `${c.firstName} ${c.lastName}`,
-        notes: c.notes?.substring(0, 150)
+        notes: c.notes?.substring(0, 100)
       })));
     }
     
-    console.log(`  📝 Sample contact notes:`, contactsWithNotes.slice(0, 3).map(c => ({
-      id: c.id,
-      name: `${c.firstName} ${c.lastName}`,
-      notes: c.notes?.substring(0, 100)
-    })));
+    // Search for common locations in notes
+    const locationKeywords = ['new york', 'berlin', 'montreal', 'warsaw', 'rome', 'tampa', 'ottawa', 'virginia beach'];
+    locationKeywords.forEach(keyword => {
+      const mentions = contacts.filter(c => 
+        c.notes && c.notes.toLowerCase().includes(keyword)
+      );
+      if (mentions.length > 0) {
+        console.log(`  🔍 Found ${mentions.length} contact(s) mentioning ${keyword}:`, mentions.map(c => ({
+          name: `${c.firstName} ${c.lastName}`,
+          notes: c.notes?.substring(0, 150)
+        })));
+      }
+    });
   }, [contacts]);
 
+  // Force map re-render when contacts or timeline changes
   useEffect(() => {
-    console.log('🔄 MAP PAGE: Serialized data change detected!');
+    console.log('🔄 MAP PAGE: Data change detected - forcing map update!');
     console.log(`  📊 Contacts array length: ${contacts.length}`);
     const contactsWithNotes = contacts.filter(c => c.notes && c.notes.trim());
     console.log(`  📝 Contacts with notes: ${contactsWithNotes.length}`);
     console.log(`  📍 Timeline events with geographic: ${timelineEvents.filter(e => e.geographicEvent && e.geographicEvent.trim()).length}`);
-    console.log(`  🔑 Contacts serialized hash: ${contactsSerialized.substring(0, 100)}...`);
-    
-    // Check for Berlin mentions
-    const berlinMentions = contacts.filter(c => c.notes && c.notes.toLowerCase().includes('berlin'));
-    if (berlinMentions.length > 0) {
-      console.log(`  🔍 Berlin mentions found: ${berlinMentions.length}`, berlinMentions.map(c => c.notes?.substring(0, 100)));
-    }
+    console.log(`  🔑 Contacts notes hash: ${contactsNotesHash.substring(0, 100)}...`);
     
     // Force map re-render by updating key - this ensures map remounts and recalculates all locations
     setMapKey(prev => {
       const newKey = prev + 1;
-      console.log(`  🗺️ Map key updated from ${prev} to ${newKey} - map will remount`);
+      console.log(`  🗺️ Map key updated from ${prev} to ${newKey} - map will remount and recalculate all markers`);
       return newKey;
     });
-  }, [contactsSerialized, timelineSerialized]);
+  }, [contactsNotesHash, timelineSerialized, contacts.length]); // Add contacts.length as extra trigger
 
   // Set up Leaflet icons once when component mounts
   useEffect(() => {
@@ -910,7 +910,7 @@ export default function MapPage() {
                 <div className="w-full h-[400px] sm:h-[500px] lg:h-[600px] relative min-h-[400px]">
                   {locationPeriods.length > 0 && (
                     <MapContainer
-                      key={`map-${mapKey}-${contactsSerialized.substring(0, 100).replace(/[^a-zA-Z0-9]/g, '')}-${locationPeriods.length}`}
+                      key={`map-${mapKey}-${contactsNotesHash.substring(0, 50).replace(/[^a-zA-Z0-9]/g, '')}-${locationPeriods.length}-${contacts.filter(c => c.notes && c.notes.trim()).length}`}
                       center={[mapCenter.lat, mapCenter.lng]}
                       zoom={locationPeriods.length === 1 ? 10 : 2}
                       minZoom={2}
