@@ -112,27 +112,40 @@ export default function ChroniclePage() {
 
         // Find existing contact by ID, email, or name
         let existing: Contact | undefined;
+        let matchMethod = 'none';
         
         // Try ID first
         if (imported.id) {
           existing = contacts.find(c => c.id === imported.id);
+          if (existing) matchMethod = 'ID';
         }
         
         // Try email if ID didn't match
-        if (!existing && imported.emailAddress) {
+        if (!existing && imported.emailAddress && imported.emailAddress.trim()) {
           existing = contacts.find(c => 
             c.emailAddress && 
-            c.emailAddress.toLowerCase() === imported.emailAddress.toLowerCase()
+            c.emailAddress.toLowerCase().trim() === imported.emailAddress.toLowerCase().trim()
           );
+          if (existing) matchMethod = 'EMAIL';
         }
         
         // Try name if email didn't match
         if (!existing) {
-          const importedNameKey = `${imported.firstName?.toLowerCase()}_${imported.lastName?.toLowerCase()}`;
+          const importedNameKey = `${imported.firstName?.toLowerCase().trim()}_${imported.lastName?.toLowerCase().trim()}`;
           existing = contacts.find(c => {
-            const existingNameKey = `${c.firstName?.toLowerCase()}_${c.lastName?.toLowerCase()}`;
-            return existingNameKey === importedNameKey && existingNameKey !== 'first name_last name';
+            const existingNameKey = `${c.firstName?.toLowerCase().trim()}_${c.lastName?.toLowerCase().trim()}`;
+            return existingNameKey === importedNameKey && existingNameKey !== 'first name_last name' && existingNameKey !== '_';
           });
+          if (existing) matchMethod = 'NAME';
+        }
+
+        // Log matching for contacts with notes
+        if (imported.notes && imported.notes.trim()) {
+          console.error(`🔍 MATCHING: "${imported.firstName} ${imported.lastName}" (has notes: "${imported.notes.substring(0, 40)}...")`);
+          console.error(`   Match found: ${!!existing}, method: ${matchMethod}`);
+          if (existing) {
+            console.error(`   Existing ID: ${existing.id}, has notes: ${!!existing.notes}`);
+          }
         }
 
         if (existing) {
@@ -149,13 +162,27 @@ export default function ChroniclePage() {
           update.dateEdited = imported.dateEdited || existing.dateEdited || '';
           update.source = imported.source || existing.source || 'Uploaded';
           
-          // CRITICAL: Explicitly handle notes - if imported has notes, use them
-          if (imported.notes !== undefined && imported.notes !== null) {
-            update.notes = imported.notes; // Use imported notes (even if empty string)
+          // CRITICAL: Always set notes field explicitly
+          // Priority: imported.notes > existing.notes > empty string
+          if (imported.notes !== undefined && imported.notes !== null && imported.notes !== '') {
+            // Imported has notes - use them
+            update.notes = imported.notes;
+          } else if (imported.notes === '') {
+            // Imported explicitly has empty notes - clear them
+            update.notes = '';
           } else if (existing.notes) {
-            update.notes = existing.notes; // Preserve existing notes if imported has none
+            // Imported has no notes, but existing does - preserve existing
+            update.notes = existing.notes;
+          } else {
+            // Neither has notes - explicitly set to empty string to ensure field exists
+            update.notes = '';
           }
-          // If neither has notes, update.notes stays undefined (will be ignored)
+
+          // Log if imported had notes
+          if (imported.notes && imported.notes.trim()) {
+            console.error(`✅ MATCH FOUND: "${existing.firstName} ${existing.lastName}" - Imported has notes: "${imported.notes.substring(0, 50)}..."`);
+            console.error(`   Update object has notes: ${!!update.notes}, value: "${update.notes?.substring(0, 50)}..."`);
+          }
 
           updates.push({ id: existing.id, contact: update });
         } else {
