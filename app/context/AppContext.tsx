@@ -303,17 +303,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (updated.notes) {
           console.log(`  - ✅ Merged contact HAS notes: "${updated.notes.substring(0, 100)}..."`);
         } else {
-          console.error(`  - ❌❌❌ Merged contact MISSING notes!`);
-          console.error(`  - Contact update object keys:`, Object.keys(contact));
-          console.error(`  - 'notes' in contact:`, 'notes' in contact);
-          console.error(`  - Existing contact notes:`, c.notes || 'none');
-          console.error(`  - Update has notes:`, contact.notes || 'none');
-          
-          // FINAL CHECK: If existing contact somehow had notes but we lost them, log it
-          if (!updated.notes && c.notes) {
-            console.error(`  - ⚠️⚠️⚠️ EXISTING CONTACT HAD NOTES BUT MERGED DOESN'T!`);
-            console.error(`  - This should not happen with the new preservation logic!`);
+          // Only log as warning if notes were expected but missing - don't log for contacts that legitimately have no notes
+          if (updateHasNotesKey && updateHasNotesValue) {
+            // We expected notes but they're missing - this is an error
+            console.error(`  - ❌❌❌ Merged contact MISSING notes when notes were provided!`);
+            console.error(`  - Contact update object keys:`, Object.keys(contact));
+            console.error(`  - 'notes' in contact:`, 'notes' in contact);
+            console.error(`  - Existing contact notes:`, c.notes || 'none');
+            console.error(`  - Update has notes:`, contact.notes || 'none');
+          } else if (c.notes) {
+            // Existing contact had notes but they were cleared unintentionally
+            console.warn(`  - ⚠️ Existing contact had notes but merged contact doesn't - preserving existing notes`);
+            // Force-preserve existing notes
+            updated.notes = c.notes;
           }
+          // Otherwise, contact legitimately has no notes - no need to log
         }
         return updated;
       }

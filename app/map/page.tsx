@@ -22,7 +22,6 @@ const cityCoordinates: Record<string, { lat: number; lng: number }> = {
   'nyc': { lat: 40.7128, lng: -74.0060 },
   'wilmington': { lat: 39.7391, lng: -75.5398 },
   'wilmington, de': { lat: 39.7391, lng: -75.5398 },
-  'moldova': { lat: 47.0104, lng: 28.8638 },
   'chisinau': { lat: 47.0104, lng: 28.8638 },
   'chisinau, moldova': { lat: 47.0104, lng: 28.8638 },
   'san francisco': { lat: 37.7749, lng: -122.4194 },
@@ -82,12 +81,10 @@ const cityCoordinates: Record<string, { lat: number; lng: number }> = {
   'roma, italy': { lat: 41.9028, lng: 12.4964 },
   'berlin': { lat: 52.5200, lng: 13.4050 },
   'berlin, germany': { lat: 52.5200, lng: 13.4050 },
-  'germany': { lat: 51.1657, lng: 10.4515 }, // Center of Germany as fallback
   'zurich': { lat: 47.3769, lng: 8.5417 },
   'zurich, switzerland': { lat: 47.3769, lng: 8.5417 },
   'zürich': { lat: 47.3769, lng: 8.5417 },
   'zürich, switzerland': { lat: 47.3769, lng: 8.5417 },
-  'switzerland': { lat: 46.8182, lng: 8.2275 }, // Center of Switzerland as fallback
 };
 
 interface LocationPeriod {
