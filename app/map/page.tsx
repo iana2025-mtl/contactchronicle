@@ -6,6 +6,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { useApp, Contact, TimelineEvent } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 
 // Dynamically import Leaflet to avoid SSR issues
 const MapContainer = dynamic(() => import('react-leaflet').then((mod) => mod.MapContainer), { ssr: false });
@@ -105,6 +106,7 @@ const missingCitiesRef = new Set<string>();
 
 export default function MapPage() {
   const { timelineEvents, contacts } = useApp();
+  const { user } = useAuth();
   const [selectedLocation, setSelectedLocation] = useState<LocationPeriod | null>(null);
   const [isClient, setIsClient] = useState(false);
   const [mapReady, setMapReady] = useState(false);
@@ -112,10 +114,80 @@ export default function MapPage() {
   const mapInstanceRef = useRef<any>(null); // Store map instance reference
   const previousContactsHashRef = useRef<string>(''); // Track previous hash to detect changes
   const forceUpdateRef = useRef(0); // Force update counter
+  const lastStorageCheckRef = useRef<string>(''); // Track last localStorage check
 
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // CRITICAL: Listen for contacts updates via custom event and localStorage
+  useEffect(() => {
+    if (!user) return;
+    
+    const contactsKey = `contactChronicle_contacts_${user.id}`;
+    
+    // Listen for custom event when contacts are updated
+    const handleContactsUpdated = (e: CustomEvent) => {
+      console.log('🔔 MAP PAGE: contactsUpdated event received!');
+      console.log(`  📊 Contact ID updated: ${e.detail?.contactId}`);
+      console.log(`  📊 Total contacts: ${e.detail?.contacts?.length || 0}`);
+      
+      // Force map recalculation
+      setMapKey(prev => {
+        const newKey = prev + 1;
+        console.log(`  🗺️ Map key updated to ${newKey} due to contactsUpdated event`);
+        return newKey;
+      });
+    };
+    
+    // Listen for storage events (cross-tab)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === contactsKey && e.newValue) {
+        console.log('🔔 MAP PAGE: localStorage changed (storage event)');
+        setMapKey(prev => prev + 1);
+      }
+    };
+    
+    // Poll localStorage to catch same-tab updates (since storage event only fires cross-tab)
+    const pollInterval = setInterval(() => {
+      const stored = localStorage.getItem(contactsKey);
+      if (stored && stored !== lastStorageCheckRef.current) {
+        try {
+          const storedContacts: Contact[] = JSON.parse(stored);
+          const storedHash = storedContacts.map(c => 
+            `${c.id}:${c.firstName}:${c.lastName}:${c.notes || ''}`
+          ).join('|');
+          
+          const currentHash = contacts.map(c => 
+            `${c.id}:${c.firstName}:${c.lastName}:${c.notes || ''}`
+          ).join('|');
+          
+          if (storedHash !== currentHash) {
+            console.log('🔔 MAP PAGE: Poll detected contacts change in localStorage!');
+            console.log(`  📊 Stored hash: ${storedHash.substring(0, 50)}...`);
+            console.log(`  📊 Current hash: ${currentHash.substring(0, 50)}...`);
+            lastStorageCheckRef.current = stored;
+            setMapKey(prev => {
+              const newKey = prev + 1;
+              console.log(`  🗺️ Map key updated to ${newKey} due to localStorage poll`);
+              return newKey;
+            });
+          }
+        } catch (error) {
+          // Ignore parse errors
+        }
+      }
+    }, 500); // Poll every 500ms
+    
+    window.addEventListener('contactsUpdated', handleContactsUpdated as EventListener);
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('contactsUpdated', handleContactsUpdated as EventListener);
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(pollInterval);
+    };
+  }, [user, contacts]);
 
   // CRITICAL: Log when contacts prop changes from context
   useEffect(() => {

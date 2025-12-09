@@ -366,8 +366,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (user && isDataLoaded) {
       const contactsKey = `contactChronicle_contacts_${user.id}`;
       try {
-        localStorage.setItem(contactsKey, JSON.stringify(updatedContacts));
+        const jsonString = JSON.stringify(finalContacts);
+        localStorage.setItem(contactsKey, jsonString);
         console.log(`  ✅ Saved to localStorage`);
+        
+        // Dispatch a custom event to notify other components
+        window.dispatchEvent(new CustomEvent('contactsUpdated', { 
+          detail: { contacts: finalContacts, contactId: id }
+        }));
+        console.log(`  ✅ Dispatched contactsUpdated event`);
         
         // Verify what was actually saved
         const savedJson = localStorage.getItem(contactsKey);
